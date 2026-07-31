@@ -11,7 +11,15 @@ export function middleware(req: NextRequest) {
   if (!password) return NextResponse.next();
 
   const { pathname } = req.nextUrl;
-  if (pathname.startsWith("/login") || pathname.startsWith("/api/login")) {
+  // Ekran logowania + endpointy odswiezane przez Vercel Cron (chronione osobno
+  // przez CRON_SECRET) omijaja bramke haslem — inaczej cron dostawalby redirect.
+  const allowed = [
+    "/login",
+    "/api/login",
+    "/api/recommendations/refresh",
+    "/api/reports/refresh",
+  ];
+  if (allowed.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
 
