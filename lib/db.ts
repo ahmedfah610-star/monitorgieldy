@@ -1,6 +1,13 @@
 import { sql } from "@vercel/postgres";
 import { createHash } from "node:crypto";
-import type { WatchlistItem, Market, Recommendation, Report } from "./types";
+import type {
+  WatchlistItem,
+  Market,
+  Recommendation,
+  Report,
+  ExtractedFinancials,
+  Conclusion,
+} from "./types";
 
 /**
  * Czy skonfigurowana jest baza Vercel Postgres.
@@ -96,6 +103,18 @@ export async function initSchema(): Promise<void> {
   await sql`ALTER TABLE reports ADD COLUMN IF NOT EXISTS extracted_at TIMESTAMPTZ;`;
   await sql`CREATE INDEX IF NOT EXISTS idx_reports_watch ON reports (watch_ticker);`;
   await sql`CREATE INDEX IF NOT EXISTS idx_reports_pub ON reports (published_at DESC);`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS ai_conclusions (
+      id          SERIAL PRIMARY KEY,
+      ticker      TEXT NOT NULL,
+      period      TEXT,
+      text        TEXT NOT NULL,
+      model       TEXT,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS idx_concl_ticker ON ai_conclusions (ticker, created_at DESC);`;
 }
 
 // ---------- Watchlist ----------
@@ -269,4 +288,54 @@ export async function getReportContext(url: string): Promise<ReportContext | nul
     SELECT watch_ticker AS "watchTicker", company, period FROM reports WHERE url = ${url} LIMIT 1;
   `;
   return rows[0] ?? null;
+}
+
+// ---------- Wnioski AI (Faza 5) ----------
+
+export interface ExtractedReportRow {
+  period: string | null;
+  company: string | null;
+  extractedJson: ExtractedFinancials;
+}
+
+/** Przeanalizowane raporty danej spolki (z extracted_json), najnowsze pierwsze. */
+export async function getExtractedReports(
+  ticker: string,
+  limit = 4,
+): Promise<ExtractedReportRow[]> {
+  const { rows } = await sql.query<ExtractedReportRow>(
+    `SELECT period, company, extracted_json AS "extractedJson"
+     FROM reports
+     WHERE watch_ticker = $1 AND extracted_json IS NOT NULL
+     ORDER BY published_at DESC NULLS LAST, created_at DESC
+     LIMIT $2;`,
+    [ticker, limit],
+  );
+  return rows;
+}
+
+export async function insertConclusion(
+  ticker: string,
+  period: string | null,
+  text: string,
+  model: string,
+): Promise<void> {
+  await sql`
+    INSERT INTO ai_conclusions (ticker, period, text, model)
+    VALUES (${ticker}, ${period}, ${text}, ${model});
+  `;
+}
+
+/** Najnowszy wniosek AI dla kazdej spolki (mapa ticker -> wniosek). */
+export async function getLatestConclusions(): Promise<Record<string, Conclusion>> {
+  const { rows } = await sql<Conclusion & { ticker: string }>`
+    SELECT DISTINCT ON (ticker)
+      ticker, period, text,
+      to_char(created_at, 'YYYY-MM-DD"T"HH24:MI') AS "createdAt"
+    FROM ai_conclusions
+    ORDER BY ticker, created_at DESC;
+  `;
+  const map: Record<string, Conclusion> = {};
+  for (const r of rows) map[r.ticker] = { period: r.period, text: r.text, createdAt: r.createdAt };
+  return map;
 }

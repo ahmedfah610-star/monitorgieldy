@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Report, ExtractedFinancials } from "@/lib/types";
+import type { Report, ExtractedFinancials, Conclusion } from "@/lib/types";
 
 interface View {
   reports: Report[];
+  conclusions: Record<string, Conclusion>;
   usingDb: boolean;
 }
 
@@ -76,6 +77,72 @@ function FinancialsPanel({ f }: { f: ExtractedFinancials }) {
       <p className="mt-2 text-[10px] text-neutral-600">
         Analiza AI — narzędzie informacyjne, nie doradztwo inwestycyjne. Zweryfikuj z raportem źródłowym.
       </p>
+    </div>
+  );
+}
+
+function CompanyConclusion({
+  ticker,
+  extractedCount,
+  initial,
+}: {
+  ticker: string;
+  extractedCount: number;
+  initial?: Conclusion;
+}) {
+  const [conclusion, setConclusion] = useState<Conclusion | undefined>(initial);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const canGenerate = extractedCount >= 2;
+
+  async function generate() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/conclusions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticker }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+      setConclusion({ text: json.text, period: json.period, createdAt: new Date().toISOString() });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Nie udalo sie wygenerowac wnioskow.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-md border border-indigo-900/60 bg-indigo-950/30 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-indigo-300">
+          Wnioski AI (trendy)
+        </span>
+        <button
+          onClick={generate}
+          disabled={busy || !canGenerate}
+          title={canGenerate ? "" : "Wymaga min. 2 przeanalizowanych raportów"}
+          className="rounded-md border border-indigo-700 px-2.5 py-1 text-xs text-indigo-200 transition hover:border-indigo-500 hover:text-indigo-100 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {busy ? "Generuję…" : conclusion ? "Generuj ponownie" : "Generuj wnioski"}
+        </button>
+      </div>
+      {!canGenerate && !conclusion && (
+        <p className="mt-1 text-xs text-neutral-500">
+          Kliknij „Analizuj" przy min. 2 raportach, aby porównać okresy.
+        </p>
+      )}
+      {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
+      {conclusion && (
+        <>
+          <p className="mt-2 text-sm text-neutral-200">{conclusion.text}</p>
+          <p className="mt-1 text-[10px] text-neutral-600">
+            AI na podstawie zapisanych raportów — nie doradztwo inwestycyjne.
+          </p>
+        </>
+      )}
     </div>
   );
 }
@@ -247,6 +314,11 @@ export default function ReportsPage() {
           <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-400">
             {reports[0]?.company ?? key} <span className="text-neutral-600">({key})</span>
           </h2>
+          <CompanyConclusion
+            ticker={key}
+            extractedCount={reports.filter((r) => r.extractedJson).length}
+            initial={view?.conclusions?.[key]}
+          />
           <ul className="divide-y divide-neutral-900 rounded-lg border border-neutral-800">
             {reports.map((r, i) => (
               <ReportRow key={`${r.url}:${i}`} r={r} />

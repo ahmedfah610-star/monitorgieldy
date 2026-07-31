@@ -51,7 +51,7 @@ Aplikacja (klik = odświeżenie), która na jednym ekranie pokazuje:
 - **Faza 2 — Rekomendacje analityków.** USA: Finnhub (recommendation trends). PL: scraper bankier.pl (per-spółka + feed rynkowy). Zapis każdej rekomendacji z datą + wykrywanie nowych (fingerprint). ✅ *(zrobione)*
 - **Faza 3 — Wykrywanie nowych raportów.** Scraper komunikatów ESPI/EBI (bankier.pl per-spółka) filtrowany po raportach okresowych („Wyniki finansowe"). Zapis linku + daty + typu (kwartalny/półroczny/roczny), dedup i wykrywanie nowych. ✅ *(zrobione — źródło bankier.pl zamiast gpw.pl, patrz niżej)*
 - **Faza 4 — Ekstrakcja danych z raportu.** Treść komunikatu → tekst (zachowane kolumny tabeli) → Claude (`output_config.format`) → ustrukturyzowany JSON (przychody, zysk operacyjny/brutto/netto, EPS — bieżący + porównawczy) + podsumowanie. Zapis w `reports.extracted_json`. ✅ *(zrobione — źródło danych: tabela „Wybrane dane finansowe" z komunikatu, zamiast osobnego PDF)*
-- **Faza 5 — Porównanie i wnioski AI.** Gdy ≥2 okresy: drugie wywołanie Claude porównuje liczby i pisze 3-4 zdania wniosków.
+- **Faza 5 — Porównanie i wnioski AI.** Gdy spółka ma ≥2 przeanalizowane raporty: drugie wywołanie Claude porównuje liczby z kolejnych okresów i pisze 3-4 zdania wniosków o trendach. Zapis w `ai_conclusions`, wyświetlanie nad listą raportów spółki. ✅ *(zrobione)*
 - **Faza 6 — Dashboard końcowy.** Jeden ekran: PL / USA / nowe rekomendacje / nowe wyniki + wnioski AI. Przycisk "Odśwież teraz" + Cron raz dziennie.
 - **Faza 7 (opcjonalnie) — Powiadomienia.** Codzienny e-mail (Resend) z podsumowaniem.
 
@@ -80,6 +80,6 @@ ai_conclusions(ticker, period, text, created_at)
 - [x] Faza 3 — wykrywanie raportów okresowych (komunikaty ESPI/EBI z bankier.pl)
 - [x] Faza 4 — ekstrakcja liczb z raportu przez Claude (przychody/zyski/EPS + podsumowanie)
 - [ ] Faza 4 — ekstrakcja z PDF
-- [ ] Faza 5 — wnioski AI
+- [x] Faza 5 — wnioski AI porównujące okresy (trendy)
 - [ ] Faza 6 — dashboard końcowy
 - [ ] Faza 7 — powiadomienia

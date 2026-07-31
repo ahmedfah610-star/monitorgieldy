@@ -55,6 +55,13 @@ export interface ExtractedFinancials {
   summary: string;
 }
 
+/** Wnioski AI porownujace okresy dla spolki (Faza 5). */
+export interface Conclusion {
+  period: string | null;
+  text: string;
+  createdAt: string;
+}
+
 export interface Recommendation {
   id?: number;
   /** Ticker z watchlisty, do ktorego rekomendacja jest dopasowana (null = feed rynkowy). */

@@ -106,6 +106,14 @@ i pokazuje pod raportem (z wyliczoną zmianą r/r).
 > Ekstrakcja z raportów bywa niedokładna (różne formaty) — traktuj jako pomoc do szybkiego
 > przeglądu, nie finalne źródło prawdy. Zweryfikuj z raportem źródłowym.
 
+## Wnioski AI — trendy (Faza 5)
+
+Gdy spółka ma **≥2 przeanalizowane raporty**, na `/reports` pojawia się przycisk
+**„Generuj wnioski"** — drugie wywołanie Claude porównuje liczby z kolejnych okresów i pisze
+3-4 zdania wniosków po polsku (co się poprawiło/pogorszyło, trendy przychodów i zysków).
+Wynik zapisuje się w `ai_conclusions` i pokazuje nad listą raportów spółki. Też wymaga
+`ANTHROPIC_API_KEY`.
+
 ## Struktura
 
 ```
@@ -122,6 +130,7 @@ app/
     reports/route.ts             # Odczyt raportów
     reports/refresh/route.ts     # Raporty: pobranie + zapis (ręcznie i cron)
     reports/extract/route.ts     # Analiza AI raportu (Faza 4)
+    conclusions/route.ts         # Wnioski AI — trendy (Faza 5)
     watchlist/route.ts           # CRUD watchlisty
     init-db/route.ts             # Tworzenie tabel
     login/route.ts               # Logowanie
@@ -130,6 +139,7 @@ lib/
   bankier.ts  finnhub.ts  recommendations.ts  # rekomendacje (Faza 2)
   espi.ts  reports.ts                    # raporty okresowe (Faza 3)
   extract.ts                             # ekstrakcja liczb przez Claude (Faza 4)
+  conclusions.ts                         # wnioski AI porównujące okresy (Faza 5)
   db.ts  types.ts  format.ts  auth.ts
 db/
   schema.sql                     # Pełny schemat (też tabele pod kolejne fazy)

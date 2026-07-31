@@ -66,12 +66,13 @@ CREATE TABLE IF NOT EXISTS reports (
 CREATE INDEX IF NOT EXISTS idx_reports_watch ON reports (watch_ticker);
 CREATE INDEX IF NOT EXISTS idx_reports_pub ON reports (published_at DESC);
 
--- --- Tabele pod kolejne fazy (jeszcze nieuzywane) ---
-
+-- Wnioski AI porownujace okresy (Faza 5).
 CREATE TABLE IF NOT EXISTS ai_conclusions (
   id          SERIAL PRIMARY KEY,
   ticker      TEXT NOT NULL,
   period      TEXT,
-  text        TEXT,
+  text        TEXT NOT NULL,
+  model       TEXT,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE INDEX IF NOT EXISTS idx_concl_ticker ON ai_conclusions (ticker, created_at DESC);

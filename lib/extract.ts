@@ -19,7 +19,7 @@ export function hasAnthropicKey(): boolean {
 }
 
 /** Model konfigurowalny przez env; domyslnie najzdolniejszy Opus. */
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5";
+export const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5";
 
 async function fetchHtml(url: string): Promise<string> {
   const res = await fetch(url, {
@@ -117,7 +117,7 @@ export async function extractFinancials(
 
   // output_config nie jest jeszcze w typach SDK 0.115 — przekazujemy przez any.
   const body = {
-    model: MODEL,
+    model: ANTHROPIC_MODEL,
     max_tokens: 4096,
     output_config: {
       effort: "low",

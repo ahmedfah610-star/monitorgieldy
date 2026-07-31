@@ -1,6 +1,12 @@
-import { hasDb, getWatchlist, upsertReports, getWatchlistReports } from "./db";
+import {
+  hasDb,
+  getWatchlist,
+  upsertReports,
+  getWatchlistReports,
+  getLatestConclusions,
+} from "./db";
 import { fetchCompanyReports } from "./espi";
-import type { Report } from "./types";
+import type { Report, Conclusion } from "./types";
 
 export interface ReportsRefreshSummary {
   inserted: number;
@@ -59,8 +65,16 @@ export async function refreshReports(): Promise<ReportsRefreshSummary> {
   };
 }
 
-/** Odczyt zapisanych raportow do wyswietlenia. */
-export async function getReportsView(): Promise<{ reports: Report[]; usingDb: boolean }> {
-  if (!hasDb()) return { reports: [], usingDb: false };
-  return { reports: await getWatchlistReports(), usingDb: true };
+/** Odczyt zapisanych raportow (+ najnowsze wnioski AI) do wyswietlenia. */
+export async function getReportsView(): Promise<{
+  reports: Report[];
+  conclusions: Record<string, Conclusion>;
+  usingDb: boolean;
+}> {
+  if (!hasDb()) return { reports: [], conclusions: {}, usingDb: false };
+  const [reports, conclusions] = await Promise.all([
+    getWatchlistReports(),
+    getLatestConclusions(),
+  ]);
+  return { reports, conclusions, usingDb: true };
 }
