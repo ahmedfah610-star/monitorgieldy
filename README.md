@@ -89,13 +89,30 @@ kolejne odświeżenia wykrywają nowości).
   wykorzysta ekstrakcja liczb przez Claude.
 - Odświeżanie: przycisk na `/reports` (POST `/api/reports/refresh`) lub Vercel Cron (6:30 UTC).
 
+## Analiza AI raportu (Faza 4)
+
+Na `/reports` każdy raport ma przycisk **„Analizuj"** — pobiera treść komunikatu, wyciąga
+tabelę „Wybrane dane finansowe" i wysyła do **Claude** (Anthropic API), który zwraca
+ustrukturyzowany JSON: przychody, zysk operacyjny/brutto/netto, EPS (bieżący okres i
+porównawczy) + krótkie podsumowanie. Wynik zapisuje się w bazie (`reports.extracted_json`)
+i pokazuje pod raportem (z wyliczoną zmianą r/r).
+
+- Wymaga **`ANTHROPIC_API_KEY`** w `.env.local` (klucz z [console.anthropic.com](https://console.anthropic.com)).
+  Bez klucza przycisk zwraca komunikat 503 — reszta aplikacji działa.
+- Model konfigurowalny przez **`ANTHROPIC_MODEL`** (domyślnie `claude-opus-5`; dla niższego
+  kosztu np. `claude-haiku-4-5`).
+- Ekstrakcja korzysta z `output_config.format` (wymuszony schemat JSON) — gwarantuje poprawny wynik.
+
+> Ekstrakcja z raportów bywa niedokładna (różne formaty) — traktuj jako pomoc do szybkiego
+> przeglądu, nie finalne źródło prawdy. Zweryfikuj z raportem źródłowym.
+
 ## Struktura
 
 ```
 app/
   page.tsx                       # Dashboard (Faza 1) — "Odśwież teraz"
   recommendations/page.tsx       # Rekomendacje (Faza 2)
-  reports/page.tsx               # Raporty okresowe (Faza 3)
+  reports/page.tsx               # Raporty okresowe (Faza 3) + analiza AI (Faza 4)
   watchlist/page.tsx             # Edycja watchlisty (Faza 0)
   login/page.tsx                 # Ekran logowania (gdy gate włączony)
   api/
@@ -104,6 +121,7 @@ app/
     recommendations/refresh/route.ts  # Rekomendacje: pobranie + zapis
     reports/route.ts             # Odczyt raportów
     reports/refresh/route.ts     # Raporty: pobranie + zapis (ręcznie i cron)
+    reports/extract/route.ts     # Analiza AI raportu (Faza 4)
     watchlist/route.ts           # CRUD watchlisty
     init-db/route.ts             # Tworzenie tabel
     login/route.ts               # Logowanie
@@ -111,6 +129,7 @@ lib/
   yahoo.ts  quotes.ts  indices.ts        # notowania (Faza 1)
   bankier.ts  finnhub.ts  recommendations.ts  # rekomendacje (Faza 2)
   espi.ts  reports.ts                    # raporty okresowe (Faza 3)
+  extract.ts                             # ekstrakcja liczb przez Claude (Faza 4)
   db.ts  types.ts  format.ts  auth.ts
 db/
   schema.sql                     # Pełny schemat (też tabele pod kolejne fazy)

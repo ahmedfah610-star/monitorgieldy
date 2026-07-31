@@ -30,6 +30,29 @@ export interface Report {
   url: string;
   /** Data publikacji (ISO, np. "2026-05-28T17:33"). */
   publishedAt: string | null;
+  /** Wyekstrahowane dane finansowe (Faza 4). Null dopoki nie przeanalizowano. */
+  extractedJson?: ExtractedFinancials | null;
+}
+
+/** Ustrukturyzowane liczby wyciagniete z raportu przez Claude (Faza 4). */
+export interface ExtractedFinancials {
+  period: string;
+  comparativePeriod: string | null;
+  currency: string;
+  unit: string;
+  revenue: number | null;
+  revenuePrior: number | null;
+  operatingProfit: number | null;
+  operatingProfitPrior: number | null;
+  grossProfit: number | null;
+  grossProfitPrior: number | null;
+  netProfit: number | null;
+  netProfitPrior: number | null;
+  ebitda: number | null;
+  eps: number | null;
+  epsPrior: number | null;
+  /** 1-2 zdania podsumowania po polsku (napisane przez Claude). */
+  summary: string;
 }
 
 export interface Recommendation {

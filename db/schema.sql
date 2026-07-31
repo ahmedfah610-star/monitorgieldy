@@ -59,8 +59,9 @@ CREATE TABLE IF NOT EXISTS reports (
   period         TEXT,                 -- np. "QSr 1/2026", "RR/2025"
   url            TEXT NOT NULL,        -- link do komunikatu (wejscie do tresci raportu)
   published_at   TIMESTAMPTZ,
+  extracted_json JSONB,                -- wyekstrahowane liczby przez Claude (Faza 4)
+  extracted_at   TIMESTAMPTZ,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
-  -- extracted_json (Faza 4) dojdzie przy ekstrakcji danych z raportu
 );
 CREATE INDEX IF NOT EXISTS idx_reports_watch ON reports (watch_ticker);
 CREATE INDEX IF NOT EXISTS idx_reports_pub ON reports (published_at DESC);

@@ -86,9 +86,14 @@ export async function initSchema(): Promise<void> {
       period       TEXT,
       url          TEXT NOT NULL,
       published_at TIMESTAMPTZ,
+      extracted_json JSONB,
+      extracted_at TIMESTAMPTZ,
       created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `;
+  // Migracja dla baz utworzonych przed Faza 4.
+  await sql`ALTER TABLE reports ADD COLUMN IF NOT EXISTS extracted_json JSONB;`;
+  await sql`ALTER TABLE reports ADD COLUMN IF NOT EXISTS extracted_at TIMESTAMPTZ;`;
   await sql`CREATE INDEX IF NOT EXISTS idx_reports_watch ON reports (watch_ticker);`;
   await sql`CREATE INDEX IF NOT EXISTS idx_reports_pub ON reports (published_at DESC);`;
 }
@@ -227,7 +232,8 @@ export async function getWatchlistReports(limit = 60): Promise<Report[]> {
     `SELECT
        watch_ticker AS "watchTicker", market, source, company, title,
        report_type AS "reportType", period, url,
-       to_char(published_at, 'YYYY-MM-DD"T"HH24:MI') AS "publishedAt"
+       to_char(published_at, 'YYYY-MM-DD"T"HH24:MI') AS "publishedAt",
+       extracted_json AS "extractedJson"
      FROM reports
      WHERE watch_ticker IS NOT NULL
      ORDER BY published_at DESC NULLS LAST, created_at DESC
@@ -235,4 +241,32 @@ export async function getWatchlistReports(limit = 60): Promise<Report[]> {
     [limit],
   );
   return rows;
+}
+
+/** Zapisuje wynik ekstrakcji AI dla raportu (po URL). Zwraca kontekst raportu. */
+interface ReportContext {
+  watchTicker: string | null;
+  company: string | null;
+  period: string | null;
+}
+
+export async function updateReportExtraction(
+  url: string,
+  extracted: object,
+): Promise<ReportContext | null> {
+  const { rows } = await sql<ReportContext>`
+    UPDATE reports
+    SET extracted_json = ${JSON.stringify(extracted)}::jsonb, extracted_at = now()
+    WHERE url = ${url}
+    RETURNING watch_ticker AS "watchTicker", company, period;
+  `;
+  return rows[0] ?? null;
+}
+
+/** Pobiera kontekst raportu (spolka/okres/ticker) po URL — do ekstrakcji. */
+export async function getReportContext(url: string): Promise<ReportContext | null> {
+  const { rows } = await sql<ReportContext>`
+    SELECT watch_ticker AS "watchTicker", company, period FROM reports WHERE url = ${url} LIMIT 1;
+  `;
+  return rows[0] ?? null;
 }
