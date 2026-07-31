@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Market, WatchlistItem } from "@/lib/types";
+import { GPW_COMPANIES } from "@/lib/gpwCompanies";
 
 export default function WatchlistPage() {
   const [items, setItems] = useState<WatchlistItem[]>([]);
@@ -14,6 +15,41 @@ export default function WatchlistPage() {
   const [market, setMarket] = useState<Market>("PL");
   const [bankierSymbol, setBankierSymbol] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const [search, setSearch] = useState("");
+  const [addingTicker, setAddingTicker] = useState<string | null>(null);
+
+  // Tickery PL juz na watchliscie — do oznaczenia "dodane" w katalogu.
+  const plTickers = useMemo(
+    () => new Set(items.filter((i) => i.market === "PL").map((i) => i.ticker.toLowerCase())),
+    [items],
+  );
+  const catalog = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return GPW_COMPANIES;
+    return GPW_COMPANIES.filter(
+      (c) => c.name.toLowerCase().includes(q) || c.ticker.includes(q) || c.bankierSymbol.toLowerCase().includes(q),
+    );
+  }, [search]);
+
+  async function addFromCatalog(c: (typeof GPW_COMPANIES)[number]) {
+    setAddingTicker(c.ticker);
+    setError(null);
+    try {
+      const res = await fetch("/api/watchlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticker: c.ticker, name: c.name, market: "PL", bankierSymbol: c.bankierSymbol }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Nie udalo sie dodac spolki.");
+    } finally {
+      setAddingTicker(null);
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -150,6 +186,48 @@ export default function WatchlistPage() {
         {" "}(z URL <code className="text-neutral-400">/gielda/notowania/akcje/CDPROJEKT/rekomendacje</code>).
         Bez niego nie pobierzemy rekomendacji dla tej spółki.
       </p>
+
+      {/* --- Katalog największych spółek GPW (dodawanie klikiem) --- */}
+      <section className="space-y-3 rounded-lg border border-neutral-800 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-neutral-200">
+            Największe spółki GPW <span className="text-neutral-500">(kliknij, aby dodać)</span>
+          </h2>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Szukaj: nazwa lub ticker…"
+            className="w-56 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100 outline-none focus:border-blue-500"
+          />
+        </div>
+        <div className="grid max-h-80 grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3 lg:grid-cols-4">
+          {catalog.map((c) => {
+            const added = plTickers.has(c.ticker);
+            const adding = addingTicker === c.ticker;
+            return (
+              <button
+                key={c.ticker}
+                onClick={() => addFromCatalog(c)}
+                disabled={added || adding || usingFallback}
+                title={c.bankierSymbol}
+                className={`flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-left text-sm transition ${
+                  added
+                    ? "border-emerald-900 bg-emerald-950/40 text-emerald-300"
+                    : "border-neutral-700 text-neutral-200 hover:border-blue-600 hover:text-blue-300 disabled:opacity-50"
+                }`}
+              >
+                <span className="truncate">
+                  {c.name} <span className="text-xs text-neutral-500">{c.ticker.toUpperCase()}</span>
+                </span>
+                <span className="shrink-0 text-xs">{added ? "✓" : adding ? "…" : "+"}</span>
+              </button>
+            );
+          })}
+        </div>
+        {catalog.length === 0 && (
+          <p className="text-sm text-neutral-500">Brak dopasowań dla „{search}".</p>
+        )}
+      </section>
 
       {loading ? (
         <p className="text-sm text-neutral-500">Ladowanie…</p>
