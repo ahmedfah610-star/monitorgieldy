@@ -118,7 +118,7 @@ Wynik zapisuje się w `ai_conclusions` i pokazuje nad listą raportów spółki.
 
 ```
 app/
-  page.tsx                       # Dashboard (Faza 1) — "Odśwież teraz"
+  page.tsx                       # Dashboard końcowy (Faza 6) — notowania + rekomendacje + raporty + wnioski, "Odśwież wszystko"
   recommendations/page.tsx       # Rekomendacje (Faza 2)
   reports/page.tsx               # Raporty okresowe (Faza 3) + analiza AI (Faza 4)
   watchlist/page.tsx             # Edycja watchlisty (Faza 0)
