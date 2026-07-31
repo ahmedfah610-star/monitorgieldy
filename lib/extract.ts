@@ -18,8 +18,8 @@ export function hasAnthropicKey(): boolean {
   return Boolean(process.env.ANTHROPIC_API_KEY);
 }
 
-/** Model konfigurowalny przez env; domyslnie najzdolniejszy Opus. */
-export const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5";
+/** Model konfigurowalny przez env; domyslnie tani i szybki Haiku. */
+export const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5";
 
 async function fetchHtml(url: string): Promise<string> {
   const res = await fetch(url, {

@@ -99,8 +99,8 @@ i pokazuje pod raportem (z wyliczoną zmianą r/r).
 
 - Wymaga **`ANTHROPIC_API_KEY`** w `.env.local` (klucz z [console.anthropic.com](https://console.anthropic.com)).
   Bez klucza przycisk zwraca komunikat 503 — reszta aplikacji działa.
-- Model konfigurowalny przez **`ANTHROPIC_MODEL`** (domyślnie `claude-opus-5`; dla niższego
-  kosztu np. `claude-haiku-4-5`).
+- Model konfigurowalny przez **`ANTHROPIC_MODEL`** (domyślnie `claude-haiku-4-5` — tani i szybki;
+  dla wyższej jakości np. `claude-opus-5`).
 - Ekstrakcja korzysta z `output_config.format` (wymuszony schemat JSON) — gwarantuje poprawny wynik.
 
 > Ekstrakcja z raportów bywa niedokładna (różne formaty) — traktuj jako pomoc do szybkiego
