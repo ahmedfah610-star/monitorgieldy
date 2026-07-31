@@ -45,18 +45,27 @@ CREATE TABLE IF NOT EXISTS recommendations (
 CREATE INDEX IF NOT EXISTS idx_rec_watch ON recommendations (watch_ticker);
 CREATE INDEX IF NOT EXISTS idx_rec_date ON recommendations (rec_date DESC);
 
--- --- Tabele pod kolejne fazy (jeszcze nieuzywane) ---
-
+-- Raporty okresowe wykryte z komunikatow ESPI/EBI (Faza 3).
+-- fingerprint = md5(url) do dedup i wykrywania nowych.
 CREATE TABLE IF NOT EXISTS reports (
   id             SERIAL PRIMARY KEY,
-  ticker         TEXT NOT NULL,
-  period         TEXT,
-  report_type    TEXT,
-  pdf_url        TEXT,
+  fingerprint    TEXT NOT NULL UNIQUE,
+  watch_ticker   TEXT,
+  market         TEXT NOT NULL,
+  source         TEXT,                 -- 'espi' | 'ebi'
+  company        TEXT,
+  title          TEXT NOT NULL,
+  report_type    TEXT,                 -- 'kwartalny' | 'polroczny' | 'roczny' | 'inny'
+  period         TEXT,                 -- np. "QSr 1/2026", "RR/2025"
+  url            TEXT NOT NULL,        -- link do komunikatu (wejscie do tresci raportu)
   published_at   TIMESTAMPTZ,
-  extracted_json JSONB,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+  -- extracted_json (Faza 4) dojdzie przy ekstrakcji danych z raportu
 );
+CREATE INDEX IF NOT EXISTS idx_reports_watch ON reports (watch_ticker);
+CREATE INDEX IF NOT EXISTS idx_reports_pub ON reports (published_at DESC);
+
+-- --- Tabele pod kolejne fazy (jeszcze nieuzywane) ---
 
 CREATE TABLE IF NOT EXISTS ai_conclusions (
   id          SERIAL PRIMARY KEY,

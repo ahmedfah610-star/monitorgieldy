@@ -1,6 +1,6 @@
 import { sql } from "@vercel/postgres";
 import { createHash } from "node:crypto";
-import type { WatchlistItem, Market, Recommendation } from "./types";
+import type { WatchlistItem, Market, Recommendation, Report } from "./types";
 
 /**
  * Czy skonfigurowana jest baza Vercel Postgres.
@@ -72,6 +72,25 @@ export async function initSchema(): Promise<void> {
   `;
   await sql`CREATE INDEX IF NOT EXISTS idx_rec_watch ON recommendations (watch_ticker);`;
   await sql`CREATE INDEX IF NOT EXISTS idx_rec_date ON recommendations (rec_date DESC);`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS reports (
+      id           SERIAL PRIMARY KEY,
+      fingerprint  TEXT NOT NULL UNIQUE,
+      watch_ticker TEXT,
+      market       TEXT NOT NULL,
+      source       TEXT,
+      company      TEXT,
+      title        TEXT NOT NULL,
+      report_type  TEXT,
+      period       TEXT,
+      url          TEXT NOT NULL,
+      published_at TIMESTAMPTZ,
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS idx_reports_watch ON reports (watch_ticker);`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_reports_pub ON reports (published_at DESC);`;
 }
 
 // ---------- Watchlist ----------
@@ -170,6 +189,48 @@ export async function getMarketRecommendations(limit = 20): Promise<Recommendati
      FROM recommendations
      WHERE watch_ticker IS NULL AND source = 'bankier'
      ORDER BY rec_date DESC NULLS LAST, created_at DESC
+     LIMIT $1;`,
+    [limit],
+  );
+  return rows;
+}
+
+// ---------- Reports (raporty okresowe) ----------
+
+/**
+ * Zapisuje raporty, pomijajac duplikaty (fingerprint = md5 z URL komunikatu).
+ * Zwraca liczbe nowo dodanych.
+ */
+export async function upsertReports(
+  reports: Report[],
+): Promise<{ inserted: number; newUrls: string[] }> {
+  const newUrls: string[] = [];
+  for (const r of reports) {
+    const fp = createHash("md5").update(r.url).digest("hex");
+    const { rows } = await sql`
+      INSERT INTO reports
+        (fingerprint, watch_ticker, market, source, company, title, report_type,
+         period, url, published_at)
+      VALUES
+        (${fp}, ${r.watchTicker}, ${r.market}, ${r.source}, ${r.company}, ${r.title},
+         ${r.reportType}, ${r.period}, ${r.url}, ${r.publishedAt})
+      ON CONFLICT (fingerprint) DO NOTHING
+      RETURNING id;
+    `;
+    if (rows.length > 0) newUrls.push(r.url);
+  }
+  return { inserted: newUrls.length, newUrls };
+}
+
+export async function getWatchlistReports(limit = 60): Promise<Report[]> {
+  const { rows } = await sql.query<Report>(
+    `SELECT
+       watch_ticker AS "watchTicker", market, source, company, title,
+       report_type AS "reportType", period, url,
+       to_char(published_at, 'YYYY-MM-DD"T"HH24:MI') AS "publishedAt"
+     FROM reports
+     WHERE watch_ticker IS NOT NULL
+     ORDER BY published_at DESC NULLS LAST, created_at DESC
      LIMIT $1;`,
     [limit],
   );

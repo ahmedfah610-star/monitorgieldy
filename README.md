@@ -74,28 +74,47 @@ Odświeżanie:
 > Wymaga bazy (Vercel Postgres). `@vercel/postgres` łączy się przez sterownik Neon, więc
 > działa z bazą Vercel/Neon — nie z lokalnym Postgresem.
 
+## Raporty okresowe (Faza 3)
+
+Strona `/reports` wykrywa nowe raporty finansowe (kwartalne / półroczne / roczne) spółek PL
+z watchlisty na podstawie komunikatów ESPI/EBI i zapisuje je z datą (dedup po URL, więc
+kolejne odświeżenia wykrywają nowości).
+
+- Źródło: **bankier.pl** — komunikaty per-spółka (`/gielda/notowania/akcje/{SLUG}/komunikaty`),
+  agregują ESPI/EBI z GPW/NewConnect. Wymaga ustawionego **„Symbolu bankier"** w watchliście
+  (jak rekomendacje). gpw.pl/komunikaty to źródło kanoniczne, ale odrzuca proste zapytania HTTP.
+- Wykrywane są raporty okresowe (na bankierze tytuł „Wyniki finansowe {kod} {okres}",
+  np. `QSr 1/2026` = kwartalny, `RR 2025` = roczny, `PSr` = półroczny).
+- Zapisany `url` to link do komunikatu — punkt wejścia do treści raportu, którą w **Fazie 4**
+  wykorzysta ekstrakcja liczb przez Claude.
+- Odświeżanie: przycisk na `/reports` (POST `/api/reports/refresh`) lub Vercel Cron (6:30 UTC).
+
 ## Struktura
 
 ```
 app/
   page.tsx                       # Dashboard (Faza 1) — "Odśwież teraz"
   recommendations/page.tsx       # Rekomendacje (Faza 2)
+  reports/page.tsx               # Raporty okresowe (Faza 3)
   watchlist/page.tsx             # Edycja watchlisty (Faza 0)
   login/page.tsx                 # Ekran logowania (gdy gate włączony)
   api/
     quotes/route.ts              # Agregacja notowań (Yahoo Finance)
-    recommendations/route.ts     # Odczyt zapisanych rekomendacji
-    recommendations/refresh/route.ts  # Pobranie + zapis (ręcznie i cron)
+    recommendations/route.ts     # Odczyt rekomendacji
+    recommendations/refresh/route.ts  # Rekomendacje: pobranie + zapis
+    reports/route.ts             # Odczyt raportów
+    reports/refresh/route.ts     # Raporty: pobranie + zapis (ręcznie i cron)
     watchlist/route.ts           # CRUD watchlisty
     init-db/route.ts             # Tworzenie tabel
     login/route.ts               # Logowanie
 lib/
   yahoo.ts  quotes.ts  indices.ts        # notowania (Faza 1)
   bankier.ts  finnhub.ts  recommendations.ts  # rekomendacje (Faza 2)
+  espi.ts  reports.ts                    # raporty okresowe (Faza 3)
   db.ts  types.ts  format.ts  auth.ts
 db/
   schema.sql                     # Pełny schemat (też tabele pod kolejne fazy)
-vercel.json                      # Cron: dzienne odświeżanie rekomendacji
+vercel.json                      # Cron: dzienne odświeżanie rekomendacji i raportów
 middleware.ts                    # Opcjonalna ochrona hasłem
 ```
 

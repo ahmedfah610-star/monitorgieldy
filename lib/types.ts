@@ -12,6 +12,26 @@ export interface WatchlistItem {
 
 export type Sentiment = "positive" | "neutral" | "negative";
 
+export type ReportType = "kwartalny" | "polroczny" | "roczny" | "inny";
+
+export interface Report {
+  id?: number;
+  /** Ticker z watchlisty, do ktorego raport jest dopasowany. */
+  watchTicker: string | null;
+  market: Market;
+  /** Zrodlo komunikatu: 'espi' | 'ebi'. */
+  source: string;
+  company: string | null;
+  title: string;
+  reportType: ReportType;
+  /** Okres raportu z tytulu, np. "QSr 1/2026", "RR 2025". */
+  period: string | null;
+  /** Link do komunikatu (wejscie do tresci raportu — uzyte w Fazie 4). */
+  url: string;
+  /** Data publikacji (ISO, np. "2026-05-28T17:33"). */
+  publishedAt: string | null;
+}
+
 export interface Recommendation {
   id?: number;
   /** Ticker z watchlisty, do ktorego rekomendacja jest dopasowana (null = feed rynkowy). */

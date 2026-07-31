@@ -4,6 +4,10 @@
     {
       "path": "/api/recommendations/refresh",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/reports/refresh",
+      "schedule": "30 6 * * *"
     }
   ]
 }
