@@ -12,6 +12,7 @@ export default function WatchlistPage() {
   const [ticker, setTicker] = useState("");
   const [name, setName] = useState("");
   const [market, setMarket] = useState<Market>("PL");
+  const [bankierSymbol, setBankierSymbol] = useState("");
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -42,12 +43,13 @@ export default function WatchlistPage() {
       const res = await fetch("/api/watchlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ticker, name, market }),
+        body: JSON.stringify({ ticker, name, market, bankierSymbol }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
       setTicker("");
       setName("");
+      setBankierSymbol("");
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Nie udalo sie dodac pozycji.");
@@ -122,6 +124,17 @@ export default function WatchlistPage() {
             <option value="US">US</option>
           </select>
         </label>
+        {market === "PL" && (
+          <label className="flex flex-col gap-1 text-xs text-neutral-400">
+            Symbol bankier
+            <input
+              value={bankierSymbol}
+              onChange={(e) => setBankierSymbol(e.target.value)}
+              placeholder="np. CDPROJEKT"
+              className="w-40 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100 outline-none focus:border-blue-500"
+            />
+          </label>
+        )}
         <button
           type="submit"
           disabled={saving || usingFallback}
@@ -130,6 +143,13 @@ export default function WatchlistPage() {
           {saving ? "Dodaje…" : "Dodaj"}
         </button>
       </form>
+
+      <p className="text-xs text-neutral-500">
+        „Symbol bankier" (tylko PL) to slug z adresu strony spółki na bankier.pl, np. dla
+        CD Projekt jest to <code className="text-neutral-400">CDPROJEKT</code>
+        {" "}(z URL <code className="text-neutral-400">/gielda/notowania/akcje/CDPROJEKT/rekomendacje</code>).
+        Bez niego nie pobierzemy rekomendacji dla tej spółki.
+      </p>
 
       {loading ? (
         <p className="text-sm text-neutral-500">Ladowanie…</p>
@@ -143,6 +163,7 @@ export default function WatchlistPage() {
                 <th className="px-3 py-2 font-medium">Nazwa</th>
                 <th className="px-3 py-2 font-medium">Ticker</th>
                 <th className="px-3 py-2 font-medium">Rynek</th>
+                <th className="px-3 py-2 font-medium">Bankier</th>
                 <th className="px-3 py-2"></th>
               </tr>
             </thead>
@@ -155,6 +176,9 @@ export default function WatchlistPage() {
                   <td className="px-3 py-2">{it.name}</td>
                   <td className="px-3 py-2 font-mono text-neutral-400">{it.ticker}</td>
                   <td className="px-3 py-2">{it.market}</td>
+                  <td className="px-3 py-2 font-mono text-neutral-500">
+                    {it.bankierSymbol ?? (it.market === "PL" ? "—" : "")}
+                  </td>
                   <td className="px-3 py-2 text-right">
                     <button
                       onClick={() => remove(it.id)}

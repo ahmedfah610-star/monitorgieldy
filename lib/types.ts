@@ -5,6 +5,33 @@ export interface WatchlistItem {
   ticker: string;
   market: Market;
   name: string;
+  /** Slug bankier.pl dla rynku PL (np. "CDPROJEKT", "PKNORLEN"). Pozwala pobrac
+   *  rekomendacje danej spolki. Null dla US / gdy nieustawiony. */
+  bankierSymbol?: string | null;
+}
+
+export type Sentiment = "positive" | "neutral" | "negative";
+
+export interface Recommendation {
+  id?: number;
+  /** Ticker z watchlisty, do ktorego rekomendacja jest dopasowana (null = feed rynkowy). */
+  watchTicker: string | null;
+  market: Market;
+  source: "bankier" | "finnhub";
+  /** Slug bankiera (PL) lub ticker (US). */
+  symbol: string;
+  company: string | null;
+  /** Dom maklerski / instytucja (PL). Null dla US (trend zbiorczy). */
+  broker: string | null;
+  rating: string | null;
+  sentiment: Sentiment | null;
+  priceTarget: number | null;
+  priceAtIssue: number | null;
+  currency: string | null;
+  /** Data wydania (YYYY-MM-DD). */
+  recDate: string | null;
+  /** Czy pozycja jest nowa od ostatniego odswiezenia (ustawiane przez /refresh). */
+  isNew?: boolean;
 }
 
 export interface Quote {

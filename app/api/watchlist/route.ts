@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
     const ticker = String(body.ticker ?? "").trim();
     const market = String(body.market ?? "").trim().toUpperCase() as Market;
     const name = String(body.name ?? "").trim();
+    const bankierSymbol = body.bankierSymbol ? String(body.bankierSymbol).trim() : null;
 
     if (!ticker || !name || (market !== "PL" && market !== "US")) {
       return NextResponse.json(
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const item = await addWatchlistItem(ticker, market, name);
+    const item = await addWatchlistItem(ticker, market, name, market === "PL" ? bankierSymbol : null);
     return NextResponse.json({ item }, { status: 201 });
   } catch (e) {
     console.error("[/api/watchlist POST] error", e);

@@ -52,23 +52,51 @@ dokładany jest automatycznie:
 - **US:** ticker bez sufiksu, np. `aapl` → `AAPL`, `msft` → `MSFT`.
 - **Indeksy (wbudowane):** `WIG20.WA`, `MWIG40.WA`, `^GSPC` (S&P 500), `^IXIC` (Nasdaq).
 
+## Rekomendacje analityków (Faza 2)
+
+Strona `/recommendations` pokazuje rekomendacje dla Twojej watchlisty + najnowszy feed
+z rynku. Dane zapisują się w bazie (z datą), więc kolejne odświeżenia wykrywają, co nowe.
+
+Źródła:
+- **PL — bankier.pl** (scraping, bez klucza). Dla każdej spółki PL ustaw w watchliście
+  **„Symbol bankier"** — slug z URL strony spółki, np. `CDPROJEKT`
+  (`/gielda/notowania/akcje/CDPROJEKT/rekomendacje`). Bez slugu spółka jest pomijana.
+  Dodatkowo pobierany jest globalny feed najnowszych rekomendacji z rynku.
+- **US — Finnhub** (recommendation trends, konsensus analityków). Wymaga darmowego klucza:
+  załóż konto na [finnhub.io](https://finnhub.io), skopiuj token do `FINNHUB_API_KEY`
+  w `.env.local`. Bez klucza rekomendacje US są pomijane (reszta działa).
+
+Odświeżanie:
+- ręcznie — przycisk **„Odswiez rekomendacje"** na `/recommendations` (POST `/api/recommendations/refresh`),
+- automatycznie — **Vercel Cron** codziennie o 6:00 UTC (`vercel.json`). Opcjonalnie ustaw
+  `CRON_SECRET`, aby zabezpieczyć wywołanie GET.
+
+> Wymaga bazy (Vercel Postgres). `@vercel/postgres` łączy się przez sterownik Neon, więc
+> działa z bazą Vercel/Neon — nie z lokalnym Postgresem.
+
 ## Struktura
 
 ```
 app/
-  page.tsx              # Dashboard (Faza 1) — "Odśwież teraz"
-  watchlist/page.tsx    # Edycja watchlisty (Faza 0)
-  login/page.tsx        # Ekran logowania (gdy gate włączony)
+  page.tsx                       # Dashboard (Faza 1) — "Odśwież teraz"
+  recommendations/page.tsx       # Rekomendacje (Faza 2)
+  watchlist/page.tsx             # Edycja watchlisty (Faza 0)
+  login/page.tsx                 # Ekran logowania (gdy gate włączony)
   api/
-    quotes/route.ts     # Agregacja notowań ze Stooq
-    watchlist/route.ts  # CRUD watchlisty
-    init-db/route.ts    # Tworzenie tabel
-    login/route.ts      # Logowanie
+    quotes/route.ts              # Agregacja notowań (Yahoo Finance)
+    recommendations/route.ts     # Odczyt zapisanych rekomendacji
+    recommendations/refresh/route.ts  # Pobranie + zapis (ręcznie i cron)
+    watchlist/route.ts           # CRUD watchlisty
+    init-db/route.ts             # Tworzenie tabel
+    login/route.ts               # Logowanie
 lib/
-  yahoo.ts   db.ts   quotes.ts   indices.ts   types.ts   format.ts   auth.ts
+  yahoo.ts  quotes.ts  indices.ts        # notowania (Faza 1)
+  bankier.ts  finnhub.ts  recommendations.ts  # rekomendacje (Faza 2)
+  db.ts  types.ts  format.ts  auth.ts
 db/
-  schema.sql            # Pełny schemat (też tabele pod kolejne fazy)
-middleware.ts           # Opcjonalna ochrona hasłem
+  schema.sql                     # Pełny schemat (też tabele pod kolejne fazy)
+vercel.json                      # Cron: dzienne odświeżanie rekomendacji
+middleware.ts                    # Opcjonalna ochrona hasłem
 ```
 
 ## Uwaga

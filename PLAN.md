@@ -42,7 +42,7 @@ Aplikacja (klik = odświeżenie), która na jednym ekranie pokazuje:
 
 - **Faza 0 — Setup i watchlista.** Next.js (App Router, TS, Tailwind) + Vercel Postgres + tabela `watchlist` + strona edycji. ✅ *(zrobione)*
 - **Faza 1 — Notowania (MVP).** Ceny + zmiana dzienna dla watchlisty i indeksów (WIG20, mWIG40, S&P500, Nasdaq). ✅ *(zrobione — źródło: Yahoo Finance zamiast Stooq, patrz niżej)*
-- **Faza 2 — Rekomendacje analityków.** USA: Finnhub. PL: scraper bankier/stockwatch. Zapis każdej rekomendacji z datą.
+- **Faza 2 — Rekomendacje analityków.** USA: Finnhub (recommendation trends). PL: scraper bankier.pl (per-spółka + feed rynkowy). Zapis każdej rekomendacji z datą + wykrywanie nowych (fingerprint). ✅ *(zrobione)*
 - **Faza 3 — Wykrywanie nowych raportów.** Scraper ESPI/EBI z gpw.pl filtrowany po słowach kluczowych. Zapis linku do PDF + daty.
 - **Faza 4 — Ekstrakcja danych z raportu.** PDF → tekst (pdf-parse) → Claude → ustrukturyzowany JSON (przychody, zysk netto, EBITDA, marże). Zapis w bazie.
 - **Faza 5 — Porównanie i wnioski AI.** Gdy ≥2 okresy: drugie wywołanie Claude porównuje liczby i pisze 3-4 zdania wniosków.
@@ -69,8 +69,8 @@ ai_conclusions(ticker, period, text, created_at)
 ## 7. Status realizacji
 
 - [x] Faza 0 — setup + watchlista
-- [x] Faza 1 — notowania Stooq (PL/US + indeksy)
-- [ ] Faza 2 — rekomendacje
+- [x] Faza 1 — notowania (PL/US + indeksy; Yahoo Finance)
+- [x] Faza 2 — rekomendacje (Finnhub US + scraper bankier.pl PL, zapis + wykrywanie nowych)
 - [ ] Faza 3 — wykrywanie raportów
 - [ ] Faza 4 — ekstrakcja z PDF
 - [ ] Faza 5 — wnioski AI
