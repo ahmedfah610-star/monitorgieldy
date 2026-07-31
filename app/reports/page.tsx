@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Report, ExtractedFinancials, Conclusion } from "@/lib/types";
+import { RecommendationsTable } from "@/components/RecommendationsTable";
+import type { Report, ExtractedFinancials, Conclusion, Recommendation } from "@/lib/types";
 
 interface View {
   reports: Report[];
@@ -147,6 +148,40 @@ function CompanyConclusion({
   );
 }
 
+function ConsensusChip({ recs }: { recs: Recommendation[] }) {
+  const targets = recs.map((r) => r.priceTarget).filter((v): v is number => v !== null).sort((a, b) => a - b);
+  const median = targets.length
+    ? targets.length % 2
+      ? targets[(targets.length - 1) / 2]
+      : (targets[targets.length / 2 - 1] + targets[targets.length / 2]) / 2
+    : null;
+  const pos = recs.filter((r) => r.sentiment === "positive").length;
+  const neu = recs.filter((r) => r.sentiment === "neutral").length;
+  const neg = recs.filter((r) => r.sentiment === "negative").length;
+  const currency = recs.find((r) => r.currency)?.currency ?? "";
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-neutral-800 bg-neutral-900/40 px-3 py-2 text-xs">
+      <span className="text-neutral-400">
+        Konsensus z <span className="font-semibold text-neutral-200">{recs.length}</span> rekomendacji:
+      </span>
+      {median !== null && (
+        <span className="text-neutral-300">
+          mediana ceny docelowej{" "}
+          <span className="font-semibold tabular-nums text-neutral-100">
+            {median.toLocaleString("pl-PL", { maximumFractionDigits: 2 })} {currency}
+          </span>
+        </span>
+      )}
+      <span className="flex items-center gap-2">
+        <span className="text-up">Kupuj {pos}</span>
+        <span className="text-neutral-300">Trzymaj {neu}</span>
+        <span className="text-down">Sprzedaj {neg}</span>
+      </span>
+    </div>
+  );
+}
+
 function ReportRow({ r }: { r: Report }) {
   const [extracted, setExtracted] = useState<ExtractedFinancials | null>(r.extractedJson ?? null);
   const [busy, setBusy] = useState(false);
@@ -207,15 +242,26 @@ export default function ReportsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<RefreshSummary | null>(null);
+  const [recsByTicker, setRecsByTicker] = useState<Record<string, Recommendation[]>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/reports", { cache: "no-store" });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
-      setView(json);
+      const [repRes, recRes] = await Promise.all([
+        fetch("/api/reports", { cache: "no-store" }).then((r) => r.json()),
+        fetch("/api/recommendations", { cache: "no-store" }).then((r) => r.json()).catch(() => null),
+      ]);
+      if (repRes.error) throw new Error(repRes.error);
+      setView(repRes);
+      // Grupujemy rekomendacje watchlisty po tickerze (do pokazania przy spolce).
+      const map: Record<string, Recommendation[]> = {};
+      for (const rec of (recRes?.watchlist ?? []) as Recommendation[]) {
+        const key = rec.watchTicker ?? rec.symbol;
+        if (!key) continue;
+        (map[key] ??= []).push(rec);
+      }
+      setRecsByTicker(map);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Nie udalo sie pobrac raportow.");
     } finally {
@@ -324,6 +370,15 @@ export default function ReportsPage() {
               <ReportRow key={`${r.url}:${i}`} r={r} />
             ))}
           </ul>
+          {(recsByTicker[key]?.length ?? 0) > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                Rekomendacje i konsensus analityków
+              </h3>
+              <ConsensusChip recs={recsByTicker[key]} />
+              <RecommendationsTable recs={recsByTicker[key].slice(0, 4)} />
+            </div>
+          )}
         </section>
       ))}
     </main>
