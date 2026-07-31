@@ -54,12 +54,28 @@ export function htmlToText(html: string): string {
   return t.trim();
 }
 
-/** Wycina okolice tabeli WYBRANE DANE FINANSOWE (wiersz "Przychody ..."). */
+/**
+ * Wycina okolice tabeli WYBRANE DANE FINANSOWE. Rozne spolki maja rozne nazwy
+ * pierwszego wiersza (np. "Przychody ze sprzedazy", "Przychody z tytulu umow"),
+ * wiec kotwiczymy odpornie: najpierw pierwszy numerowany wiersz "I. Przychod...",
+ * potem szersze warianty, na koncu "Zysk (strata) netto".
+ */
 export function relevantSection(text: string): string {
-  let start = text.search(/Przychody (ze sprzeda|netto)/i);
-  if (start < 0) start = text.toLowerCase().lastIndexOf("wybrane dane finansowe");
+  const anchors: RegExp[] = [
+    /I+\.\s*Przychod/i, // pierwszy numerowany wiersz tabeli WYBRANE DANE
+    /Przychody (ze sprzeda|z tytu|netto|z dzia|z umow)/i,
+    /Zysk \(strata\) netto|Zysk netto z dzia|Zysk netto/i,
+  ];
+  let start = -1;
+  for (const a of anchors) {
+    const m = text.search(a);
+    if (m >= 0) {
+      start = m;
+      break;
+    }
+  }
   if (start < 0) start = 0;
-  return text.slice(Math.max(0, start - 300), start + 4000);
+  return text.slice(Math.max(0, start - 400), start + 4300);
 }
 
 const SCHEMA = {
