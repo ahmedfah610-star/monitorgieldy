@@ -267,6 +267,8 @@ interface ReportContext {
   watchTicker: string | null;
   company: string | null;
   period: string | null;
+  /** Wczesniejsza ekstrakcja z bazy (null = raport jeszcze nieanalizowany). */
+  extractedJson?: ExtractedFinancials | null;
 }
 
 export async function updateReportExtraction(
@@ -282,10 +284,16 @@ export async function updateReportExtraction(
   return rows[0] ?? null;
 }
 
-/** Pobiera kontekst raportu (spolka/okres/ticker) po URL — do ekstrakcji. */
+/**
+ * Pobiera kontekst raportu (spolka/okres/ticker) po URL — do ekstrakcji.
+ * Zwraca tez wczesniejsza ekstrakcje (extracted_json), by mozna bylo oddac
+ * wynik z pamieci zamiast ponownie wolac API.
+ */
 export async function getReportContext(url: string): Promise<ReportContext | null> {
   const { rows } = await sql<ReportContext>`
-    SELECT watch_ticker AS "watchTicker", company, period FROM reports WHERE url = ${url} LIMIT 1;
+    SELECT watch_ticker AS "watchTicker", company, period,
+           extracted_json AS "extractedJson"
+    FROM reports WHERE url = ${url} LIMIT 1;
   `;
   return rows[0] ?? null;
 }

@@ -187,14 +187,19 @@ function ReportRow({ r }: { r: Report }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function analyze() {
+  // force=true wymusza ponowne wywolanie API (kosztuje tokeny). Bez force
+  // serwer odda wynik z pamieci, jesli raport byl juz analizowany.
+  async function analyze(force = false) {
+    if (force && !window.confirm("Ponowna analiza wywoła model AI i zużyje tokeny. Kontynuować?")) {
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
       const res = await fetch("/api/reports/extract", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: r.url }),
+        body: JSON.stringify({ url: r.url, force }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
@@ -223,8 +228,9 @@ function ReportRow({ r }: { r: Report }) {
         </a>
         <span className="text-xs text-neutral-500">{r.publishedAt?.replace("T", " ") ?? "—"}</span>
         <button
-          onClick={analyze}
+          onClick={() => analyze(Boolean(extracted))}
           disabled={busy}
+          title={extracted ? "Ponowna analiza zużywa tokeny API" : "Analiza wywoła model AI (tokeny)"}
           className="rounded-md border border-neutral-700 px-2.5 py-1 text-xs text-neutral-200 transition hover:border-blue-600 hover:text-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {busy ? "Analizuję…" : extracted ? "Analizuj ponownie" : "Analizuj"}
@@ -306,7 +312,8 @@ export default function ReportsPage() {
         <div>
           <h1 className="text-2xl font-semibold">Raporty okresowe</h1>
           <p className="text-xs text-neutral-500">
-            Komunikaty ESPI/EBI dla spółek PL z watchlisty. „Analizuj" wyciąga kluczowe liczby przez AI.
+            Komunikaty ESPI/EBI dla spółek PL z watchlisty. „Odswiez raporty" dodaje tylko nowe (bez AI).
+            „Analizuj" wyciąga liczby przez AI raz i zapisuje — stare raporty nie idą ponownie do API.
           </p>
         </div>
         <button
