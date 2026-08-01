@@ -11,6 +11,7 @@ const LINKS: { href: string; label: string }[] = [
   { href: "/recommendations", label: "Rekomendacje" },
   { href: "/reports", label: "Raporty" },
   { href: "/outlook", label: "Perspektywy" },
+  { href: "/forecast", label: "Prognozy" },
   { href: "/insider", label: "Insiderzy" },
   { href: "/short", label: "Shorty" },
   { href: "/holdings", label: "Pakiety" },

@@ -184,6 +184,21 @@ wbudowanej mapy (`lib/sectors.ts`, cały katalog GPW + popularne spółki US; mo
 - Pozycje zapisywane w tabeli `portfolio` (wymaga bazy). Yahoo `assetProfile` (sektor) wymaga
   crumba/401, dlatego mapa branż jest wbudowana i przewidywalna.
 
+## Prognozy przychodów (Faza 16)
+
+Strona `/forecast` — **szacunek MarketScope** prognozowanej dynamiki przychodów, łączący trzy
+składniki pokazane osobno (deterministycznie, bez AI):
+
+1. **Trend firmy** — dynamika przychodów r/r z ostatniego przeanalizowanego raportu.
+2. **Branża** — typowa roczna dynamika sektora (prior; `lib/forecast.ts` ma mapę per branża).
+3. **Korekta makro** — `wrażliwość branży na cykl (β) × (wzrost PKB − trend)`. Sektory cykliczne
+   (surowce, banki, przemysł, motoryzacja) reagują mocniej; defensywne (ochrona zdrowia, telekom,
+   dobra konsumenckie) słabiej.
+
+Prognoza = `0,5·trend firmy + 0,35·branża + korekta makro`, przycięta do rozsądnego zakresu; przy
+braku raportu opiera się na branży + makro (pewność „niska"). Pokazujemy też prognozowany przychód
+(`ostatni × (1 + dynamika)`). To model **poglądowy**, nie prognoza inwestycyjna.
+
 ## Koniunktura makro PL/USA (Faza 15)
 
 Strona `/macro` — klimat makroekonomiczny Polski i USA obok siebie: **inflacja CPI, wzrost PKB,
@@ -266,6 +281,7 @@ app/
   ranking/page.tsx               # Ranking atrakcyjności — wynik z sygnałów (Faza 13)
   portfolio/page.tsx             # Twoje portfolio — pozycje, branże, dywersyfikacja (Faza 14)
   macro/page.tsx                 # Koniunktura makro PL/USA (Faza 15)
+  forecast/page.tsx              # Prognozy przychodów — firma + branża + makro (Faza 16)
   watchlist/page.tsx             # Edycja watchlisty (Faza 0)
   login/page.tsx                 # Ekran logowania (gdy gate włączony)
   api/
@@ -302,6 +318,7 @@ lib/
   ranking.ts                             # ranking atrakcyjności — scoring z sygnałów (Faza 13)
   portfolio.ts  sectors.ts               # portfel + mapa branż (Faza 14)
   macro.ts                               # koniunktura makro PL/USA — World Bank + NBP (Faza 15)
+  forecast.ts                            # prognozy przychodów — firma + branża + makro (Faza 16)
   insider.ts                             # transakcje insiderów — art. 19 MAR z PDF (Faza 7)
   knf.ts                                 # krótkie pozycje netto — rejestr KNF (Faza 8)
   holdings.ts                            # znaczne pakiety akcji — art. 69 (Faza 9)
