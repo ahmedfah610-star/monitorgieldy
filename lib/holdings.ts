@@ -1,3 +1,4 @@
+import { extractText, getDocumentProxy } from "unpdf";
 import {
   hasDb,
   getWatchlist,
@@ -20,7 +21,7 @@ const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
   "(KHTML, like Gecko) Chrome/120 Safari/537.36";
 
-const MAX_NEW_PER_REFRESH = 40;
+const MAX_NEW_PER_REFRESH = 25;
 
 async function fetchHtml(url: string): Promise<string> {
   const res = await fetch(url, {
@@ -30,6 +31,26 @@ async function fetchHtml(url: string): Promise<string> {
   });
   if (!res.ok) throw new Error(`HTTP ${res.status} dla ${url}`);
   return res.text();
+}
+
+/** Pobiera PDF i zwraca jego tekst ze zbita biala spacja (pod regexy). */
+async function fetchPdfText(url: string): Promise<string> {
+  const res = await fetch(url, {
+    cache: "no-store",
+    headers: { "User-Agent": UA },
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status} dla ${url}`);
+  const buf = new Uint8Array(await res.arrayBuffer());
+  const pdf = await getDocumentProxy(buf);
+  const { text } = await extractText(pdf, { mergePages: true });
+  return (Array.isArray(text) ? text.join(" ") : text).replace(/\s+/g, " ").trim();
+}
+
+/** Linki do zalacznikow PDF emitenta (formularze art. 69), z pominieciem regulaminow. */
+function attachmentPdfUrls(bodyHtml: string): string[] {
+  const urls = bodyHtml.match(/https:\/\/bonnier\.pl\/static\/att\/emitent\/[^"'\s]+\.pdf/gi);
+  return urls ? [...new Set(urls)] : [];
 }
 
 function decode(s: string): string {
@@ -110,15 +131,34 @@ export function extractHolder(bodyText: string): string | null {
   return m ? decode(m[1]).replace(/\s*[,.]$/, "") : null;
 }
 
-/** Best-effort: udzial w glosach po transakcji (%) z tresci/formularza. */
+/**
+ * Best-effort: udzial w glosach po transakcji (%). Obsluguje dwa uklady:
+ *  - formularz PDF: etykieta, potem wartosc ("% udział w liczbie głosów 4,84"),
+ *  - tekst HTML: wartosc, potem etykieta ("4,84% udziału w liczbie głosów").
+ * Bierze ostatnia sensowna wartosc (<=100%) — zwykle stan "po zmianie".
+ */
 export function extractPctAfter(bodyText: string): number | null {
-  const matches = [
-    ...bodyText.matchAll(/([\d]+(?:[,.]\d+)?)\s*%\s*(?:udział\w*\s+)?w (?:ogólnej\s+)?liczbie głosów/gi),
-  ];
-  if (matches.length === 0) return null;
-  // Zwykle ostatnia wzmianka opisuje stan "po" / aktualny.
-  const n = Number(matches[matches.length - 1][1].replace(",", "."));
-  return Number.isFinite(n) ? n : null;
+  const vals: number[] = [];
+  for (const m of bodyText.matchAll(
+    /%\s*udział\w*\s+w\s+(?:ogólnej\s+)?liczbie głosów\s+([\d]+(?:[,.]\d+)?)/gi,
+  ))
+    vals.push(Number(m[1].replace(",", ".")));
+  for (const m of bodyText.matchAll(
+    /([\d]+(?:[,.]\d+)?)\s*%\s*(?:udział\w*\s+)?w\s+(?:ogólnej\s+)?liczbie głosów/gi,
+  ))
+    vals.push(Number(m[1].replace(",", ".")));
+  const valid = vals.filter((v) => Number.isFinite(v) && v > 0 && v <= 100);
+  return valid.length ? valid[valid.length - 1] : null;
+}
+
+/** Best-effort: podmiot ze standardowego formularza art. 69 (PDF). */
+export function extractHolderFromForm(pdfText: string): string | null {
+  const person = pdfText.match(
+    /Imię\s+([A-ZŁŚŻÓĆŃ][\wąćęłńóśżź-]+)\s+Nazwisko\s+([A-ZŁŚŻÓĆŃ][\wąćęłńóśżź -]+?)\s+(?:brak|PESEL|Akcje|Typ|Siedziba|Kod|Data)/i,
+  );
+  if (person) return `${person[1]} ${person[2]}`.replace(/\s+/g, " ").trim();
+  const entity = pdfText.match(/Nazwa podmiotu\s+(.+?)\s+(?:Kod LEI|Typ podmiotu|Siedziba|Forma)/i);
+  return entity ? entity[1].trim() : null;
 }
 
 async function resolveHolding(
@@ -141,6 +181,20 @@ async function resolveHolding(
     const text = decode(html.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<[^>]+>/g, " "));
     base.holder = extractHolder(text);
     base.pctAfter = extractPctAfter(text);
+
+    // Zwykle szczegoly sa w zalaczonym formularzu PDF — doczytaj gdy brak danych.
+    if (base.holder === null || base.pctAfter === null) {
+      for (const pdf of attachmentPdfUrls(html).slice(0, 2)) {
+        try {
+          const txt = await fetchPdfText(pdf);
+          base.holder ??= extractHolderFromForm(txt) ?? extractHolder(txt);
+          base.pctAfter ??= extractPctAfter(txt);
+        } catch {
+          // zalacznik moze byc skanem/blednym plikiem — pomijamy
+        }
+        if (base.holder !== null && base.pctAfter !== null) break;
+      }
+    }
   } catch {
     // tresc niedostepna — zostaje sam sygnal z tytulu
   }

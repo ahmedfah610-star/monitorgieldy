@@ -87,7 +87,7 @@ kolejne odświeżenia wykrywają nowości).
   np. `QSr 1/2026` = kwartalny, `RR 2025` = roczny, `PSr` = półroczny).
 - Zapisany `url` to link do komunikatu — punkt wejścia do treści raportu, którą w **Fazie 4**
   wykorzysta ekstrakcja liczb przez Claude.
-- Odświeżanie: przycisk na `/reports` (POST `/api/reports/refresh`) lub Vercel Cron (6:30 UTC).
+- Odświeżanie: przycisk na `/reports` (POST `/api/reports/refresh`) lub zbiorczo `/api/refresh-all`.
 
 ## Analiza AI raportu (Faza 4)
 
@@ -130,7 +130,7 @@ i **za ile**. Tego typu strumienia praktycznie nie ma w polskich narzędziach.
   z linkiem „szczegóły w PDF →".
 - Dedup po URL komunikatu — kolejne odświeżenia doczytują **tylko nowe** zgłoszenia (limit
   25 PDF-ów na odświeżenie; resztę doczyta następne).
-- Odświeżanie: przycisk na `/insider` (POST `/api/insider/refresh`) lub Vercel Cron (6:45 UTC).
+- Odświeżanie: przycisk na `/insider` (POST `/api/insider/refresh`) lub zbiorczo `/api/refresh-all`.
 
 ## Krótkie pozycje netto — rejestr KNF (Faza 8)
 
@@ -143,7 +143,7 @@ rejestru krótkiej sprzedaży KNF (pozycje netto ≥0,5% kapitału).
 - Zapisujemy każdy wpis (posiadacz, %, ISIN, data obliczenia, data aktualizacji), dedup po
   posiadacz+emitent+data+%. Bieżąca pozycja funduszu = jego najnowszy wpis; „łączna" sumuje
   bieżące pozycje, badge „aktywna" = zgłoszenie z ostatnich 30 dni.
-- Odświeżanie: przycisk na `/short` (POST `/api/short/refresh`) lub Vercel Cron (7:00 UTC).
+- Odświeżanie: przycisk na `/short` (POST `/api/short/refresh`) lub zbiorczo `/api/refresh-all`.
 
 ## Znaczne pakiety akcji — art. 69 (Faza 9)
 
@@ -153,10 +153,11 @@ zawiadomienia o przekroczeniu progów 5/10/…% (art. 69 ustawy o ofercie).
 - Źródło: komunikaty ESPI (bankier), ta sama lista per-spółka. Zawiadomienia wykrywane po
   tytule (art. 69 / „stanu posiadania" / „znaczny pakiet").
 - Z **tytułu** (pewny sygnał) czytamy kierunek (wejście/zwiększenie vs wyjście/zmniejszenie) i
-  progi. Podmiot zgłaszający oraz udział w głosach po transakcji — **best-effort** z treści HTML
-  (bywa w załączonym PDF, wtedy null). Bez AI.
+  progi. Podmiot zgłaszający oraz udział w głosach po transakcji — **best-effort**: najpierw z
+  treści HTML, a gdy ich tam nie ma, z załączonego **formularza PDF** art. 69 (`unpdf` + regex,
+  bierzemy „% udział w liczbie głosów" po zmianie oraz imię/nazwę zgłaszającego). Bez AI.
 - Dedup po URL, doczytywane tylko nowe. Odświeżanie: `/holdings` (POST `/api/holdings/refresh`)
-  lub Vercel Cron (7:15 UTC).
+  lub zbiorczo przez `/api/refresh-all` (patrz niżej).
 
 ## Dywidendy (Faza 10)
 
@@ -169,7 +170,18 @@ z dniem ustalenia prawa (record date) i dniem wypłaty.
   („proponowana/projekt" = jeszcze niepewna, „uchwalona" = zatwierdzona), rok.
 - Upsert z aktualizacją — gdy dywidenda przechodzi z „proponowana" w „uchwalona" (i dochodzą
   daty), wpis się aktualizuje. Odświeżanie: `/dividends` (POST `/api/dividends/refresh`) lub
-  Vercel Cron (7:30 UTC).
+  zbiorczo `/api/refresh-all`.
+
+## Zbiorcze odświeżanie i cron (Faza 11)
+
+Zamiast osobnego crona na każde źródło (limit planu Hobby na Vercelu), jest **jeden**
+endpoint `POST/GET /api/refresh-all`, który uruchamia wszystkie odświeżenia naraz
+(`Promise.allSettled` — awaria jednego źródła nie psuje reszty) i zwraca zbiorcze podsumowanie.
+
+- `vercel.json` ma teraz **jeden** cron: `/api/refresh-all` codziennie o 6:00 UTC.
+- Pojedyncze endpointy `*/refresh` zostają — działają przyciski „Odswiez" na każdej stronie.
+- `maxDuration` dla refresh-all to 300 s (Pro); na Hobby ścięte do 60 s — cięższe źródła
+  (insiderzy, pakiety z PDF) mogą nie dokończyć w jednym przebiegu, doczytają przy kolejnym.
 
 ## Struktura
 
@@ -200,6 +212,7 @@ app/
     holdings/refresh/route.ts    # Pakiety: pobranie + parsowanie tytułu/treści (ręcznie i cron)
     dividends/route.ts           # Odczyt dywidend
     dividends/refresh/route.ts   # Dywidendy: pobranie z kalendarza bankier (ręcznie i cron)
+    refresh-all/route.ts         # Zbiorcze odświeżanie wszystkich źródeł (jeden cron)
     watchlist/route.ts           # CRUD watchlisty
     init-db/route.ts             # Tworzenie tabel
     login/route.ts               # Logowanie
@@ -213,10 +226,11 @@ lib/
   knf.ts                                 # krótkie pozycje netto — rejestr KNF (Faza 8)
   holdings.ts                            # znaczne pakiety akcji — art. 69 (Faza 9)
   dividends.ts                           # dywidendy — kalendarz bankier.pl (Faza 10)
+  refreshAll.ts                          # zbiorcze odświeżanie wszystkich źródeł (Faza 11)
   db.ts  types.ts  format.ts  auth.ts
 db/
   schema.sql                     # Pełny schemat (też tabele pod kolejne fazy)
-vercel.json                      # Cron: dzienne odświeżanie rekomendacji i raportów
+vercel.json                      # Cron: jedno dzienne /api/refresh-all (wszystkie źródła)
 middleware.ts                    # Opcjonalna ochrona hasłem
 ```
 
