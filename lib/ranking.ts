@@ -2,233 +2,243 @@ import { hasDb, getWatchlist, getCompanySignals, getMacroScores, type CompanySig
 import type { RankingComponent, RankingEntry, Market } from "./types";
 
 /**
- * Wewnetrzny ranking atrakcyjnosci spolek (Faza 13).
+ * Ranking atrakcyjnosci spolek — zlozony wskaznik (composite indicator).
  *
- * DETERMINISTYCZNY, bez AI (zero tokenow). Kazda spolka dostaje wynik 0-100
- * zlozony z wazonych sygnalow, ktore juz zbieramy. Kazda skladowa liczona jest
- * w [-1,1] (byczo..niedzwiedzio); wagi renormalizujemy po skladowych, ktore
- * MAJA dane, wiec brak danych nie ciagnie sztucznie do neutralnego. Pokazujemy
- * rozbicie, zeby bylo widac dlaczego spolka jest wyzej.
+ * Metodyka (bez etykiet/outcome, wiec NIE model nadzorowany — zgodnie z
+ * podejsciem OECD/JRC do wskaznikow zlozonych):
+ *  1. Dla kazdej spolki liczymy CIAGLE surowe sygnaly, zorientowane tak, ze
+ *     wyzej = lepiej (shorty z minusem itd.).
+ *  2. Standaryzacja PRZEKROJOWA i ODPORNA: robust z-score = (x - mediana) /
+ *     (1.4826 * MAD) liczony na zbiorze spolek, z winsoryzacja do +-2.5. Dzieki
+ *     temu kazdy sygnal jest mierzony wzgledem grupy porownawczej, a wartosci
+ *     skrajne (np. short 13%) nie dominuja.
+ *  3. Agregacja: wazona srednia z-score'ow po skladowych, ktore MAJA dane.
+ *  4. Redukcja wg pewnosci: composite * (pokrycie wagowe) — malo danych ciagnie
+ *     ku neutralnemu.
+ *  5. Mapowanie na 0-100 przez dystrybuante normalna Φ (50 = mediana rynku),
+ *     zeby wynik byl dobrze rozlozony, a nie liniowo nasycony.
  *
- * 50 = neutralnie. Okno czasowe dla zdarzen (insiderzy, pakiety) to ~180 dni.
+ * Deterministyczne, bez AI. Skladowa "macro" wsrod spolek jednego rynku sie
+ * zeruje (identyczna) i rozroznia dopiero PL vs US — to poprawne dla rankingu
+ * wzglednego.
  */
 const HORIZON_DAYS = 180;
+const WINSOR = 2.5; // ograniczenie z-score
+const SPREAD = 0.9; // skala mapowania Φ (mniejsza => wiekszy rozrzut)
 
-const WEIGHTS = {
-  consensus: 0.23, // rekomendacje analitykow
-  insider: 0.18, // transakcje osob zarzadzajacych
-  short: 0.16, // krotkie pozycje (KNF)
-  financials: 0.18, // trend wynikow r/r
-  holdings: 0.1, // znaczne pakiety (art. 69)
-  macro: 0.1, // koniunktura makro rynku (PL/US)
-  dividend: 0.05, // stopa dywidendy
-} as const;
+const WEIGHTS: Record<string, number> = {
+  consensus: 0.23,
+  insider: 0.18,
+  short: 0.16,
+  financials: 0.18,
+  holdings: 0.1,
+  macro: 0.1,
+  dividend: 0.05,
+};
+const LABELS: Record<string, string> = {
+  consensus: "Rekomendacje",
+  insider: "Insiderzy",
+  short: "Krótkie pozycje",
+  financials: "Wyniki r/r",
+  holdings: "Znaczne pakiety",
+  macro: "Koniunktura",
+  dividend: "Dywidenda",
+};
+const KEYS = Object.keys(WEIGHTS);
 
-function clamp(n: number, lo = -1, hi = 1): number {
+// ---------- statystyka ----------
+function median(xs: number[]): number {
+  const s = [...xs].sort((a, b) => a - b);
+  const n = s.length;
+  if (n === 0) return 0;
+  return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
+}
+function mad(xs: number[], med: number): number {
+  return median(xs.map((x) => Math.abs(x - med)));
+}
+function stdev(xs: number[], mean: number): number {
+  if (xs.length < 2) return 0;
+  return Math.sqrt(xs.reduce((a, x) => a + (x - mean) ** 2, 0) / (xs.length - 1));
+}
+function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
 }
+// dystrybuanta normalna przez przyblizenie erf (Abramowitz-Stegun 7.1.26)
+function erf(x: number): number {
+  const s = Math.sign(x);
+  const t = 1 / (1 + 0.3275911 * Math.abs(x));
+  const y =
+    1 -
+    ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) *
+      t *
+      Math.exp(-x * x);
+  return s * y;
+}
+const normCdf = (x: number) => 0.5 * (1 + erf(x / Math.SQRT2));
 
 function recentEnough(dateStr: string | null): boolean {
-  if (!dateStr) return true; // brak daty nie wyklucza
+  if (!dateStr) return true;
   const t = Date.parse(dateStr);
-  if (!Number.isFinite(t)) return true;
-  return (Date.now() - t) / 86_400_000 <= HORIZON_DAYS;
+  return !Number.isFinite(t) || (Date.now() - t) / 86_400_000 <= HORIZON_DAYS;
 }
 
-function consensusComp(recs: CompanySignals["recommendations"]): RankingComponent {
-  const w = WEIGHTS.consensus;
-  if (recs.length === 0)
-    return { key: "consensus", label: "Rekomendacje", score: null, weight: w, detail: "brak" };
-  const buy = recs.filter((r) => r.sentiment === "positive").length;
-  const hold = recs.filter((r) => r.sentiment === "neutral").length;
-  const sell = recs.filter((r) => r.sentiment === "negative").length;
-  const rated = buy + hold + sell || recs.length;
-  // Tlumienie malej proby: dzielimy przez min. 4, by 1-2 rekomendacje nie daly maksa.
-  return {
-    key: "consensus",
-    label: "Rekomendacje",
-    score: clamp((buy - sell) / Math.max(rated, 4)),
-    weight: w,
-    detail: `Kupuj ${buy} / Trzymaj ${hold} / Sprzedaj ${sell}`,
-  };
+// ---------- surowe sygnaly (ciagle, wyzej = lepiej) ----------
+interface Raw {
+  value: number | null;
+  detail: string;
 }
 
-function insiderComp(ins: CompanySignals["insider"]): RankingComponent {
-  const w = WEIGHTS.insider;
-  const recent = ins.filter((t) => recentEnough(t.txDate ?? t.publishedAt?.slice(0, 10) ?? null));
-  if (recent.length === 0)
-    return { key: "insider", label: "Insiderzy", score: null, weight: w, detail: "brak" };
-  let buyVal = 0,
-    sellVal = 0,
-    buyN = 0,
-    sellN = 0;
-  for (const t of recent) {
-    const v = t.value ?? 0;
-    if (t.txType === "nabycie") {
-      buyVal += v;
-      buyN += 1;
-    } else if (t.txType === "zbycie") {
-      sellVal += v;
-      sellN += 1;
+function rawSignals(market: Market, s: CompanySignals, macroRaw: number | null): Record<string, Raw> {
+  const out: Record<string, Raw> = {};
+
+  // Rekomendacje: tilt sentymentu z tlumieniem malej proby.
+  if (s.recommendations.length) {
+    const b = s.recommendations.filter((r) => r.sentiment === "positive").length;
+    const h = s.recommendations.filter((r) => r.sentiment === "neutral").length;
+    const se = s.recommendations.filter((r) => r.sentiment === "negative").length;
+    const rated = b + h + se || s.recommendations.length;
+    out.consensus = { value: (b - se) / Math.max(rated, 4), detail: `Kupuj ${b}/Trzymaj ${h}/Sprzedaj ${se}` };
+  } else out.consensus = { value: null, detail: "brak" };
+
+  // Insiderzy: netto kupno-sprzedaz (wartosciowo, inaczej po liczbie).
+  const ins = s.insider.filter((t) => recentEnough(t.txDate ?? t.publishedAt?.slice(0, 10) ?? null));
+  if (ins.length) {
+    let bv = 0, sv = 0, bn = 0, sn = 0;
+    for (const t of ins) {
+      const v = t.value ?? 0;
+      if (t.txType === "nabycie") { bv += v; bn += 1; }
+      else if (t.txType === "zbycie") { sv += v; sn += 1; }
     }
+    const useVal = bv + sv > 0;
+    const net = useVal ? bv - sv : bn - sn;
+    const den = useVal ? bv + sv : bn + sn;
+    out.insider = {
+      value: den > 0 ? net / den : null,
+      detail: `kupno ${bn}/sprzedaż ${sn}${useVal ? ` (~${Math.round((bv - sv) / 1000).toLocaleString("pl-PL")} tys.)` : ""}`,
+    };
+  } else out.insider = { value: null, detail: "brak" };
+
+  // Krotkie pozycje: -laczny % (mniej shortu = wyzej). Brak wpisow = brak danych.
+  if (s.shorts.length) {
+    const latest = new Map<string, (typeof s.shorts)[number]>();
+    for (const x of s.shorts) {
+      const p = latest.get(x.holder);
+      if (!p || (x.positionDate ?? "") > (p.positionDate ?? "")) latest.set(x.holder, x);
+    }
+    const total = [...latest.values()].reduce((a, x) => a + (x.netShortPct ?? 0), 0);
+    out.short = { value: -total, detail: `łącznie ${total.toLocaleString("pl-PL", { maximumFractionDigits: 2 })}%` };
+  } else out.short = { value: null, detail: "brak" };
+
+  // Wyniki r/r: srednia dynamika przychodow i zysku netto.
+  if (s.financials.length) {
+    const f = s.financials[0].extractedJson;
+    const g = (c: number | null, p: number | null) => (c === null || p === null || p === 0 ? null : (c - p) / Math.abs(p));
+    const rev = g(f.revenue, f.revenuePrior);
+    const net = g(f.netProfit, f.netProfitPrior);
+    const gr: number[] = [];
+    const parts: string[] = [];
+    if (rev !== null) { gr.push(rev); parts.push(`przych. ${rev >= 0 ? "+" : ""}${(rev * 100).toFixed(0)}%`); }
+    if (net !== null) { gr.push(net); parts.push(`zysk ${net >= 0 ? "+" : ""}${(net * 100).toFixed(0)}%`); }
+    out.financials = {
+      value: gr.length ? gr.reduce((a, b) => a + b, 0) / gr.length : null,
+      detail: parts.length ? parts.join(", ") : "brak porównania",
+    };
+  } else out.financials = { value: null, detail: "brak" };
+
+  // Znaczne pakiety: netto wejscia-wyjscia.
+  const hold = s.holdings.filter((n) => recentEnough(n.publishedAt?.slice(0, 10) ?? null));
+  if (hold.length) {
+    const inc = hold.filter((n) => n.direction === "increase").length;
+    const dec = hold.filter((n) => n.direction === "decrease").length;
+    out.holdings = { value: inc + dec > 0 ? (inc - dec) / (inc + dec) : null, detail: `wejścia ${inc}/wyjścia ${dec}` };
+  } else out.holdings = { value: null, detail: "brak" };
+
+  // Koniunktura makro rynku (wspolna dla rynku).
+  out.macro =
+    macroRaw === null || macroRaw === undefined
+      ? { value: null, detail: "brak" }
+      : { value: macroRaw, detail: `klimat ${market} ${Math.round((macroRaw + 1) * 50)}/100` };
+
+  // Dywidenda: stopa (tylko dodatnia informacja).
+  const dv = s.dividends.find((d) => d.yieldPct !== null && d.yieldPct > 0);
+  out.dividend = dv ? { value: dv.yieldPct as number, detail: `stopa ${(dv.yieldPct as number).toLocaleString("pl-PL")}%` } : { value: null, detail: "brak" };
+
+  return out;
+}
+
+export interface RankItem {
+  company: string;
+  ticker: string;
+  market: Market;
+  raw: Record<string, Raw>;
+}
+
+/** Buduje ranking z surowych sygnalow: standaryzacja przekrojowa + agregacja. */
+export function buildRanking(items: RankItem[]): RankingEntry[] {
+  // Statystyki odpornosciowe per skladowa (na zbiorze spolek).
+  const stat: Record<string, { med: number; scale: number } | null> = {};
+  for (const key of KEYS) {
+    const vals = items.map((it) => it.raw[key]?.value).filter((v): v is number => v !== null && Number.isFinite(v));
+    if (vals.length < 2) {
+      stat[key] = null; // za malo danych, by rozroznic — z=0
+      continue;
+    }
+    const med = median(vals);
+    let scale = 1.4826 * mad(vals, med);
+    if (scale === 0) {
+      // MAD=0 (>=polowa identyczna) — fallback na odchylenie standardowe.
+      const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+      scale = stdev(vals, mean);
+    }
+    stat[key] = { med, scale };
   }
-  // Preferuj wartosci; gdy brak kwot — licz po liczbie transakcji.
-  const useVal = buyVal + sellVal > 0;
-  const net = useVal ? buyVal - sellVal : buyN - sellN;
-  const denom = useVal ? buyVal + sellVal : buyN + sellN;
-  const score = denom > 0 ? clamp(net / denom) : null;
-  const money = useVal ? ` (~${Math.round((buyVal - sellVal) / 1000).toLocaleString("pl-PL")} tys. netto)` : "";
-  return {
-    key: "insider",
-    label: "Insiderzy",
-    score,
-    weight: w,
-    detail: `kupno ${buyN} / sprzedaż ${sellN}${money}`,
-  };
+
+  const entries: RankingEntry[] = items.map((it) => {
+    const components: RankingComponent[] = KEYS.map((key) => {
+      const raw = it.raw[key] ?? { value: null, detail: "brak" };
+      const w = WEIGHTS[key];
+      if (raw.value === null) return { key, label: LABELS[key], score: null, weight: w, detail: raw.detail };
+      const st = stat[key];
+      let z = 0;
+      if (st && st.scale > 0) z = clamp((raw.value - st.med) / st.scale, -WINSOR, WINSOR);
+      const sigma = `${z >= 0 ? "+" : ""}${z.toFixed(1)}σ`;
+      return { key, label: LABELS[key], score: z, weight: w, detail: `${raw.detail} · ${sigma}` };
+    });
+
+    const active = components.filter((c) => c.score !== null);
+    const sumActiveW = active.reduce((a, c) => a + c.weight, 0);
+    const sumAllW = components.reduce((a, c) => a + c.weight, 0);
+    const composite = sumActiveW > 0 ? active.reduce((a, c) => a + c.weight * (c.score as number), 0) / sumActiveW : 0;
+    const confidence = sumAllW > 0 ? sumActiveW / sumAllW : 0;
+    const shrunk = composite * confidence;
+    return {
+      ticker: it.ticker,
+      company: it.company,
+      market: it.market,
+      score: Math.round(100 * normCdf(shrunk / SPREAD)),
+      coverage: confidence,
+      components,
+    };
+  });
+
+  entries.sort((a, b) => b.score - a.score || b.coverage - a.coverage);
+  return entries;
 }
 
-function shortComp(shorts: CompanySignals["shorts"]): RankingComponent {
-  const w = WEIGHTS.short;
-  if (shorts.length === 0)
-    return { key: "short", label: "Krótkie pozycje", score: null, weight: w, detail: "brak" };
-  // biezaca pozycja = najnowszy wpis per posiadacz
-  const latest = new Map<string, (typeof shorts)[number]>();
-  for (const s of shorts) {
-    const prev = latest.get(s.holder);
-    if (!prev || (s.positionDate ?? "") > (prev.positionDate ?? "")) latest.set(s.holder, s);
-  }
-  const total = [...latest.values()].reduce((a, s) => a + (s.netShortPct ?? 0), 0);
-  // Shorty tylko obnizaja: 0% -> 0, 3%+ -> -1.
-  return {
-    key: "short",
-    label: "Krótkie pozycje",
-    score: clamp(-total / 3, -1, 0),
-    weight: w,
-    detail: `łącznie ${total.toLocaleString("pl-PL", { maximumFractionDigits: 2 })}%`,
-  };
-}
-
-function financialsComp(fin: CompanySignals["financials"]): RankingComponent {
-  const w = WEIGHTS.financials;
-  if (fin.length === 0)
-    return { key: "financials", label: "Wyniki r/r", score: null, weight: w, detail: "brak" };
-  const f = fin[0].extractedJson;
-  const growths: number[] = [];
-  const parts: string[] = [];
-  const g = (cur: number | null, prior: number | null): number | null =>
-    cur === null || prior === null || prior === 0 ? null : (cur - prior) / Math.abs(prior);
-  const rev = g(f.revenue, f.revenuePrior);
-  const net = g(f.netProfit, f.netProfitPrior);
-  if (rev !== null) {
-    growths.push(clamp(rev / 0.25));
-    parts.push(`przychody ${rev >= 0 ? "+" : ""}${(rev * 100).toFixed(0)}%`);
-  }
-  if (net !== null) {
-    growths.push(clamp(net / 0.25));
-    parts.push(`zysk netto ${net >= 0 ? "+" : ""}${(net * 100).toFixed(0)}%`);
-  }
-  const score = growths.length ? growths.reduce((a, b) => a + b, 0) / growths.length : null;
-  return {
-    key: "financials",
-    label: "Wyniki r/r",
-    score,
-    weight: w,
-    detail: parts.length ? parts.join(", ") : `${fin[0].period ?? f.period} (bez danych porównawczych)`,
-  };
-}
-
-function holdingsComp(h: CompanySignals["holdings"]): RankingComponent {
-  const w = WEIGHTS.holdings;
-  const recent = h.filter((n) => recentEnough(n.publishedAt?.slice(0, 10) ?? null));
-  if (recent.length === 0)
-    return { key: "holdings", label: "Znaczne pakiety", score: null, weight: w, detail: "brak" };
-  const inc = recent.filter((n) => n.direction === "increase").length;
-  const dec = recent.filter((n) => n.direction === "decrease").length;
-  const denom = inc + dec;
-  return {
-    key: "holdings",
-    label: "Znaczne pakiety",
-    score: denom > 0 ? clamp((inc - dec) / denom) : null,
-    weight: w,
-    detail: `wejścia ${inc} / wyjścia ${dec}`,
-  };
-}
-
-function dividendComp(divs: CompanySignals["dividends"]): RankingComponent {
-  const w = WEIGHTS.dividend;
-  const withYield = divs.find((d) => d.yieldPct !== null && d.yieldPct > 0);
-  if (!withYield)
-    return { key: "dividend", label: "Dywidenda", score: null, weight: w, detail: "brak" };
-  const y = withYield.yieldPct as number;
-  return {
-    key: "dividend",
-    label: "Dywidenda",
-    score: clamp(y / 8, 0, 1), // 8%+ -> +1, tylko dodatnia
-    weight: w,
-    detail: `stopa ${y.toLocaleString("pl-PL")}%`,
-  };
-}
-
-/** Koniunktura makro rynku (wspolna dla wszystkich spolek PL albo US). */
-function macroComp(market: Market, macroScoreRaw: number | null | undefined): RankingComponent {
-  const w = WEIGHTS.macro;
-  if (macroScoreRaw === null || macroScoreRaw === undefined)
-    return { key: "macro", label: "Koniunktura", score: null, weight: w, detail: "brak" };
-  return {
-    key: "macro",
-    label: "Koniunktura",
-    score: clamp(macroScoreRaw),
-    weight: w,
-    detail: `klimat ${market} ${Math.round((macroScoreRaw + 1) * 50)}/100`,
-  };
-}
-
-/** Czysta funkcja: liczy pozycje rankingu z sygnalow (bez I/O). */
-export function scoreCompany(
-  company: string,
-  ticker: string,
-  market: Market,
-  s: CompanySignals,
-  macroScoreRaw: number | null = null,
-): RankingEntry {
-  const components = [
-    consensusComp(s.recommendations),
-    insiderComp(s.insider),
-    shortComp(s.shorts),
-    financialsComp(s.financials),
-    holdingsComp(s.holdings),
-    macroComp(market, macroScoreRaw),
-    dividendComp(s.dividends),
-  ];
-  const active = components.filter((c) => c.score !== null);
-  const sumActiveW = active.reduce((a, c) => a + c.weight, 0);
-  const sumAllW = components.reduce((a, c) => a + c.weight, 0);
-  // "Opinia" [-1,1] z dostepnych skladowych.
-  const opinion = sumActiveW > 0 ? active.reduce((a, c) => a + c.weight * (c.score as number), 0) / sumActiveW : 0;
-  // Pewnosc = jaka czesc modelu (wagowo) faktycznie mamy. Malo danych => wynik
-  // sciagany ku neutralnemu 50, zeby skapy sygnal nie dawal skrajnego wyniku.
-  const confidence = sumAllW > 0 ? sumActiveW / sumAllW : 0;
-  const shrunk = opinion * confidence;
-  return {
-    ticker,
-    company,
-    market,
-    score: Math.round((shrunk + 1) * 50),
-    coverage: sumActiveW / sumAllW, // pokrycie wagowe (0-1)
-    components,
-  };
-}
-
-/** Liczy ranking dla calej watchlisty, malejaco wg wyniku. */
+/** Liczy ranking dla calej watchlisty. */
 export async function computeRankings(): Promise<{ ranking: RankingEntry[]; usingDb: boolean }> {
   if (!hasDb()) return { ranking: [], usingDb: false };
   const [watchlist, macroScores] = await Promise.all([getWatchlist(), getMacroScores()]);
-  const entries = await Promise.all(
+  const items: RankItem[] = await Promise.all(
     watchlist.map(async (w) => {
       const signals = await getCompanySignals(w.ticker);
-      return scoreCompany(w.name, w.ticker, w.market, signals, macroScores[w.market] ?? null);
+      return {
+        company: w.name,
+        ticker: w.ticker,
+        market: w.market,
+        raw: rawSignals(w.market, signals, macroScores[w.market] ?? null),
+      };
     }),
   );
-  entries.sort((a, b) => b.score - a.score || b.coverage - a.coverage);
-  return { ranking: entries, usingDb: true };
+  return { ranking: buildRanking(items), usingDb: true };
 }

@@ -204,17 +204,25 @@ Strona `/ranking` to **wewnętrzny, deterministyczny ranking** spółek z watchl
 (50 = neutralnie) liczony ze wszystkich zebranych sygnałów. **Bez AI, zero tokenów**, liczony
 w locie przy każdym wejściu.
 
-- Składowe (waga): rekomendacje 25%, insiderzy 20%, wyniki r/r 20%, krótkie pozycje 18%, znaczne
-  pakiety 12%, dywidenda 5%. Każda liczona w `[-1,1]` (byczo↔niedźwiedzio); wagi
-  **renormalizowane** do składowych, które mają dane, więc brak danych nie ciągnie do neutralnego.
-- Zdarzeniowe sygnały (insiderzy, pakiety) liczone z okna ~180 dni. Shorty tylko obniżają wynik.
-- **Shrinkage wg pewności:** wynik odchyla się od 50 tylko proporcjonalnie do **wagowego pokrycia
-  danymi** (`wynik = 50 + odchylenie × pewność`, `pewność = Σ wag dostępnych / Σ wszystkich wag`).
-  Dzięki temu spółka z 2-3 sygnałami nie dostaje skrajnego, nieporównywalnego wyniku (np.
-  Diagnostyka 89→59, PKO BP 87→64), a spółka z kompletem danych zostaje bez zmian. Rekomendacje
-  mają dodatkowo tłumienie małej próby (`/max(liczba, 4)`).
-- UI pokazuje **rozbicie na chipy** (dlaczego spółka jest wyżej) + flagę „skąpe dane" przy niskim
-  pokryciu. Logika w `lib/ranking.ts` (`scoreCompany` to czysta, testowalna funkcja).
+Model to **wskaźnik złożony** (composite indicator) zbudowany wg podejścia OECD/JRC. Ponieważ nie
+mamy zmiennej objaśnianej (przyszłych stóp zwrotu z etykietami), **nie da się** estymować modelu
+nadzorowanego — właściwe jest rygorystyczne złożenie sygnałów:
+
+1. **Ciągłe surowe sygnały** per spółka, zorientowane „wyżej = lepiej" (shorty z minusem itd.).
+2. **Standaryzacja przekrojowa i odporna:** robust z-score `= (x − mediana) / (1,4826·MAD)` liczony
+   na zbiorze spółek, z **winsoryzacją ±2,5σ** — każdy sygnał mierzony względem grupy porównawczej,
+   a skrajności (np. short 13%) nie dominują (fallback na odch. std., gdy MAD=0).
+3. **Agregacja:** ważona średnia z-score'ów (rekomendacje 23%, insiderzy 18%, wyniki r/r 18%,
+   krótkie pozycje 16%, koniunktura 10%, znaczne pakiety 10%, dywidenda 5%).
+4. **Redukcja wg pewności:** `composite × pokrycie wagowe` — mało danych ciągnie ku neutralnemu.
+5. **Mapowanie na 0-100 przez dystrybuantę normalną Φ** (50 = mediana rynku) — dobry rozkład
+   zamiast liniowego nasycania.
+
+- Chip pokazuje odchylenie składowej w **σ** względem mediany peers; rekomendacje mają tłumienie
+  małej próby (`/max(liczba, 4)`); zdarzenia (insiderzy, pakiety) z okna ~180 dni.
+- Składowa „koniunktura" różnicuje dopiero spółki **różnych rynków** (wśród samych PL się zeruje —
+  poprawne dla rankingu względnego).
+- Logika w `lib/ranking.ts`: `buildRanking` (czysta, testowalna funkcja na całym zbiorze).
 
 ## Perspektywy spółek (Faza 12)
 
