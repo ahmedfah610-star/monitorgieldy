@@ -157,8 +157,9 @@ export default function RankingPage() {
       <p className="text-[10px] text-neutral-600">
         Metodyka (wskaźnik złożony wg podejścia OECD/JRC — bez modelu nadzorowanego, bo brak
         etykiet/outcome): odporny z-score przekrojowy (mediana + MAD, winsoryzacja ±2,5σ) →
-        ważona średnia (rekomendacje 18%, potencjał 16%, wyniki r/r 16%, insiderzy 15%, krótkie
-        pozycje 14%, znaczne pakiety 8%, koniunktura 8%, dywidenda 5%) → redukcja wg pokrycia danymi →
+        ważona średnia (rekomendacje 18%, potencjał 16%, prognoza wzrostu 12%, insiderzy 14%,
+        krótkie pozycje 13%, wyniki r/r 10%, znaczne pakiety 7%, koniunktura 6%, dywidenda 4%) →
+        redukcja wg pokrycia danymi →
         mapowanie przez dystrybuantę normalną. Rekomendacje mają tłumienie małej próby. Składowa
         „koniunktura" różnicuje dopiero spółki różnych rynków (PL vs US). Narzędzie informacyjne,
         nie doradztwo inwestycyjne.

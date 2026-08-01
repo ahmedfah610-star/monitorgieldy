@@ -1,5 +1,7 @@
-import { hasDb, getWatchlist, getCompanySignals, getMacroScores, type CompanySignals } from "./db";
+import { hasDb, getWatchlist, getCompanySignals, getMacroSnapshots, type CompanySignals } from "./db";
 import { fetchQuote, toYahooSymbol } from "./yahoo";
+import { projectGrowth } from "./forecast";
+import { detectSector } from "./sectors";
 import type { RankingComponent, RankingEntry, Market } from "./types";
 
 /**
@@ -30,19 +32,21 @@ const SPREAD = 0.9; // skala mapowania Φ (mniejsza => wiekszy rozrzut)
 const WEIGHTS: Record<string, number> = {
   consensus: 0.18, // wydzwiek rekomendacji (Kupuj/Trzymaj/Sprzedaj)
   potential: 0.16, // potencjal: mediana ceny docelowej vs kurs biezacy
-  financials: 0.16, // trend wynikow r/r
-  insider: 0.15, // transakcje osob zarzadzajacych
-  short: 0.14, // krotkie pozycje (KNF)
-  holdings: 0.08, // znaczne pakiety (art. 69)
-  macro: 0.08, // koniunktura makro rynku
-  dividend: 0.05, // stopa dywidendy (prognoza z dyskontem)
+  forecast: 0.12, // prognozowana dynamika przychodow (firma+branza+makro)
+  insider: 0.14, // transakcje osob zarzadzajacych
+  short: 0.13, // krotkie pozycje (KNF)
+  financials: 0.1, // realne wyniki r/r (jakosc ostatniego wykonania)
+  holdings: 0.07, // znaczne pakiety (art. 69)
+  macro: 0.06, // koniunktura makro rynku (nizsza, bo czesc jest juz w prognozie)
+  dividend: 0.04, // stopa dywidendy (prognoza z dyskontem)
 };
 const LABELS: Record<string, string> = {
   consensus: "Rekomendacje",
   potential: "Potencjał",
-  financials: "Wyniki r/r",
+  forecast: "Prognoza wzrostu",
   insider: "Insiderzy",
   short: "Krótkie pozycje",
+  financials: "Wyniki r/r",
   holdings: "Znaczne pakiety",
   macro: "Koniunktura",
   dividend: "Dywidenda",
@@ -96,8 +100,11 @@ function rawSignals(
   s: CompanySignals,
   macroRaw: number | null,
   price: number | null,
+  sector: string,
+  gdp: number | null,
 ): Record<string, Raw> {
   const out: Record<string, Raw> = {};
+  let revGrowth: number | null = null; // dynamika przychodow firmy — do prognozy
 
   // Rekomendacje: tilt sentymentu z tlumieniem malej proby.
   if (s.recommendations.length) {
@@ -154,6 +161,7 @@ function rawSignals(
     const g = (c: number | null, p: number | null) => (c === null || p === null || p === 0 ? null : (c - p) / Math.abs(p));
     const rev = g(f.revenue, f.revenuePrior);
     const net = g(f.netProfit, f.netProfitPrior);
+    revGrowth = rev;
     const gr: number[] = [];
     const parts: string[] = [];
     if (rev !== null) { gr.push(rev); parts.push(`przych. ${rev >= 0 ? "+" : ""}${(rev * 100).toFixed(0)}%`); }
@@ -171,6 +179,14 @@ function rawSignals(
     const dec = hold.filter((n) => n.direction === "decrease").length;
     out.holdings = { value: inc + dec > 0 ? (inc - dec) / (inc + dec) : null, detail: `wejścia ${inc}/wyjścia ${dec}` };
   } else out.holdings = { value: null, detail: "brak" };
+
+  // Prognoza wzrostu: forward-looking dynamika przychodow (firma + branza + makro).
+  // Dostepna niemal zawsze (branza znana); najlepsza, gdy jest raport i makro.
+  const { projectedGrowth } = projectGrowth(revGrowth, sector, gdp);
+  out.forecast = {
+    value: projectedGrowth,
+    detail: `${projectedGrowth >= 0 ? "+" : ""}${(projectedGrowth * 100).toFixed(0)}% przychodów`,
+  };
 
   // Koniunktura makro rynku (wspolna dla rynku).
   out.macro =
@@ -256,18 +272,26 @@ export function buildRanking(items: RankItem[]): RankingEntry[] {
 /** Liczy ranking dla calej watchlisty. */
 export async function computeRankings(): Promise<{ ranking: RankingEntry[]; usingDb: boolean }> {
   if (!hasDb()) return { ranking: [], usingDb: false };
-  const [watchlist, macroScores] = await Promise.all([getWatchlist(), getMacroScores()]);
+  const [watchlist, macro] = await Promise.all([getWatchlist(), getMacroSnapshots()]);
+  const macroRaw: Record<string, number | null> = { PL: macro.PL?.scoreRaw ?? null, US: macro.US?.scoreRaw ?? null };
+  const gdpFrac = (m: Market): number | null => {
+    const v = macro[m]?.indicators?.find((i) => i.key === "gdp")?.value;
+    return v === null || v === undefined ? null : v / 100;
+  };
+  const gdp: Record<string, number | null> = { PL: gdpFrac("PL"), US: gdpFrac("US") };
+
   const items: RankItem[] = await Promise.all(
     watchlist.map(async (w) => {
       const [signals, quote] = await Promise.all([
         getCompanySignals(w.ticker),
         fetchQuote(toYahooSymbol(w.ticker, w.market)).catch(() => null),
       ]);
+      const sector = detectSector(w.ticker, w.market, w.bankierSymbol ?? null);
       return {
         company: w.name,
         ticker: w.ticker,
         market: w.market,
-        raw: rawSignals(w.market, signals, macroScores[w.market] ?? null, quote?.close ?? null),
+        raw: rawSignals(w.market, signals, macroRaw[w.market] ?? null, quote?.close ?? null, sector, gdp[w.market] ?? null),
       };
     }),
   );

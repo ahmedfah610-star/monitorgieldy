@@ -227,11 +227,13 @@ nadzorowanego — właściwe jest rygorystyczne złożenie sygnałów:
 2. **Standaryzacja przekrojowa i odporna:** robust z-score `= (x − mediana) / (1,4826·MAD)` liczony
    na zbiorze spółek, z **winsoryzacją ±2,5σ** — każdy sygnał mierzony względem grupy porównawczej,
    a skrajności (np. short 13%) nie dominują (fallback na odch. std., gdy MAD=0).
-3. **Agregacja:** ważona średnia z-score'ów (rekomendacje 18%, **potencjał** 16%, wyniki r/r 16%,
-   insiderzy 15%, krótkie pozycje 14%, znaczne pakiety 8%, koniunktura 8%, dywidenda 5%).
-   „Potencjał" = `(mediana ceny docelowej analityków − kurs bieżący) / kurs` — łączy **prognozę
-   i aktualną cenę** (kurs z Yahoo, cel z rekomendacji). Dywidenda **prognozowana** (proponowana/
-   projekt) dostaje dyskonto niepewności (×0,6) względem uchwalonej/wypłaconej.
+3. **Agregacja:** ważona średnia z-score'ów (rekomendacje 18%, **potencjał** 16%, **prognoza
+   wzrostu** 12%, insiderzy 14%, krótkie pozycje 13%, wyniki r/r 10%, znaczne pakiety 7%,
+   koniunktura 6%, dywidenda 4%). „Potencjał" = `(mediana ceny docelowej − kurs bieżący) / kurs`
+   (prognoza + aktualna cena). „Prognoza wzrostu" = forward-looking dynamika przychodów z Fazy 16
+   (firma + branża + makro) — dlatego wagi „wyniki r/r" i „koniunktura" są niższe (część ich
+   sygnału jest już w prognozie, unikamy podwójnego liczenia). Dywidenda **prognozowana** dostaje
+   dyskonto niepewności (×0,6).
 4. **Redukcja wg pewności:** `composite × pokrycie wagowe` — mało danych ciągnie ku neutralnemu.
 5. **Mapowanie na 0-100 przez dystrybuantę normalną Φ** (50 = mediana rynku) — dobry rozkład
    zamiast liniowego nasycania.
