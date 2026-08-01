@@ -114,6 +114,24 @@ Gdy spółka ma **≥2 przeanalizowane raporty**, na `/reports` pojawia się prz
 Wynik zapisuje się w `ai_conclusions` i pokazuje nad listą raportów spółki. Też wymaga
 `ANTHROPIC_API_KEY`.
 
+## Transakcje insiderów — art. 19 MAR (Faza 7)
+
+Strona `/insider` agreguje **powiadomienia o transakcjach osób zarządzających** (art. 19 MAR)
+dla spółek PL z watchlisty — kto z zarządu (lub osób blisko powiązanych) kupił/sprzedał akcje
+i **za ile**. Tego typu strumienia praktycznie nie ma w polskich narzędziach.
+
+- Źródło: komunikaty ESPI (bankier.pl), ta sama lista per-spółka co raporty. Powiadomienia
+  wykrywane po tytule (art. 19 / MAR / „Nabycie akcji przez…").
+- Większość emitentów **nie** wpisuje liczb do treści HTML — dołącza standardowy formularz
+  ESMA jako **PDF** (`bonnier.pl/static/att/emitent`). PDF ma warstwę tekstową, więc jest
+  pobierany i parsowany **kodem** (`unpdf` + regex) — z pola „Informacje zbiorcze" bierzemy
+  łączny wolumen i cenę średnią → wartość transakcji. **Bez AI, zero tokenów.**
+- Gdy formularza nie da się odczytać (np. skan), wiersz trafia do strumienia jako zdarzenie
+  z linkiem „szczegóły w PDF →".
+- Dedup po URL komunikatu — kolejne odświeżenia doczytują **tylko nowe** zgłoszenia (limit
+  25 PDF-ów na odświeżenie; resztę doczyta następne).
+- Odświeżanie: przycisk na `/insider` (POST `/api/insider/refresh`) lub Vercel Cron (6:45 UTC).
+
 ## Struktura
 
 ```
@@ -121,6 +139,7 @@ app/
   page.tsx                       # Dashboard końcowy (Faza 6) — notowania + rekomendacje + raporty + wnioski, "Odśwież wszystko"
   recommendations/page.tsx       # Rekomendacje (Faza 2)
   reports/page.tsx               # Raporty okresowe (Faza 3) + analiza AI (Faza 4)
+  insider/page.tsx               # Transakcje insiderów — art. 19 MAR (Faza 7)
   watchlist/page.tsx             # Edycja watchlisty (Faza 0)
   login/page.tsx                 # Ekran logowania (gdy gate włączony)
   api/
@@ -131,6 +150,8 @@ app/
     reports/refresh/route.ts     # Raporty: pobranie + zapis (ręcznie i cron)
     reports/extract/route.ts     # Analiza AI raportu (Faza 4)
     conclusions/route.ts         # Wnioski AI — trendy (Faza 5)
+    insider/route.ts             # Odczyt transakcji insiderów
+    insider/refresh/route.ts     # Insiderzy: pobranie + parsowanie PDF (ręcznie i cron)
     watchlist/route.ts           # CRUD watchlisty
     init-db/route.ts             # Tworzenie tabel
     login/route.ts               # Logowanie
@@ -140,6 +161,7 @@ lib/
   espi.ts  reports.ts                    # raporty okresowe (Faza 3)
   extract.ts                             # ekstrakcja liczb przez Claude (Faza 4)
   conclusions.ts                         # wnioski AI porównujące okresy (Faza 5)
+  insider.ts                             # transakcje insiderów — art. 19 MAR z PDF (Faza 7)
   db.ts  types.ts  format.ts  auth.ts
 db/
   schema.sql                     # Pełny schemat (też tabele pod kolejne fazy)

@@ -55,6 +55,36 @@ export interface ExtractedFinancials {
   summary: string;
 }
 
+/**
+ * Transakcja osoby zarzadzajacej (art. 19 MAR) — sygnal insiderski.
+ * Zrodlo: komunikaty ESPI (bankier.pl). Parsowana kodem, bez AI.
+ */
+export interface InsiderTransaction {
+  id?: number;
+  /** Ticker z watchlisty, do ktorego transakcja jest dopasowana. */
+  watchTicker: string | null;
+  company: string | null;
+  /** Osoba pelniaca obowiazki zarzadcze (PDMR). */
+  person: string | null;
+  /** Funkcja / powiazanie (np. "Prezes Zarzadu", "Osoba blisko zwiazana"). */
+  role: string | null;
+  /** Kierunek: 'nabycie' (kupno), 'zbycie' (sprzedaz) lub 'inne'. */
+  txType: "nabycie" | "zbycie" | "inne" | null;
+  /** Instrument (np. "akcje", "obligacje"). */
+  instrument: string | null;
+  volume: number | null;
+  price: number | null;
+  currency: string | null;
+  /** Laczna wartosc transakcji (volume*price, gdy policzalne). */
+  value: number | null;
+  /** Data transakcji (YYYY-MM-DD). */
+  txDate: string | null;
+  /** Link do komunikatu ESPI. */
+  url: string;
+  /** Data publikacji komunikatu (ISO). */
+  publishedAt: string | null;
+}
+
 /** Wnioski AI porownujace okresy dla spolki (Faza 5). */
 export interface Conclusion {
   period: string | null;

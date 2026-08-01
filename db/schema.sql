@@ -76,3 +76,25 @@ CREATE TABLE IF NOT EXISTS ai_conclusions (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_concl_ticker ON ai_conclusions (ticker, created_at DESC);
+
+-- Transakcje osob zarzadzajacych — art. 19 MAR (Faza 7). Parsowane z PDF, bez AI.
+CREATE TABLE IF NOT EXISTS insider_transactions (
+  id           SERIAL PRIMARY KEY,
+  fingerprint  TEXT NOT NULL UNIQUE,
+  watch_ticker TEXT,
+  company      TEXT,
+  person       TEXT,
+  role         TEXT,
+  tx_type      TEXT,
+  instrument   TEXT,
+  volume       NUMERIC,
+  price        NUMERIC,
+  currency     TEXT,
+  value        NUMERIC,
+  tx_date      DATE,
+  url          TEXT NOT NULL,
+  published_at TIMESTAMPTZ,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_insider_watch ON insider_transactions (watch_ticker);
+CREATE INDEX IF NOT EXISTS idx_insider_date ON insider_transactions (tx_date DESC);

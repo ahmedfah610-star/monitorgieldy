@@ -7,6 +7,7 @@ import type {
   Report,
   ExtractedFinancials,
   Conclusion,
+  InsiderTransaction,
 } from "./types";
 
 /**
@@ -103,6 +104,29 @@ export async function initSchema(): Promise<void> {
   await sql`ALTER TABLE reports ADD COLUMN IF NOT EXISTS extracted_at TIMESTAMPTZ;`;
   await sql`CREATE INDEX IF NOT EXISTS idx_reports_watch ON reports (watch_ticker);`;
   await sql`CREATE INDEX IF NOT EXISTS idx_reports_pub ON reports (published_at DESC);`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS insider_transactions (
+      id           SERIAL PRIMARY KEY,
+      fingerprint  TEXT NOT NULL UNIQUE,
+      watch_ticker TEXT,
+      company      TEXT,
+      person       TEXT,
+      role         TEXT,
+      tx_type      TEXT,
+      instrument   TEXT,
+      volume       NUMERIC,
+      price        NUMERIC,
+      currency     TEXT,
+      value        NUMERIC,
+      tx_date      DATE,
+      url          TEXT NOT NULL,
+      published_at TIMESTAMPTZ,
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS idx_insider_watch ON insider_transactions (watch_ticker);`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_insider_date ON insider_transactions (tx_date DESC);`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS ai_conclusions (
@@ -296,6 +320,68 @@ export async function getReportContext(url: string): Promise<ReportContext | nul
     FROM reports WHERE url = ${url} LIMIT 1;
   `;
   return rows[0] ?? null;
+}
+
+// ---------- Transakcje insiderow (art. 19 MAR) ----------
+
+/** Odcisk wiersza: URL komunikatu + kluczowe pola transakcji (dedup). */
+function insiderFingerprint(t: InsiderTransaction): string {
+  const key =
+    t.volume === null && t.price === null && t.txDate === null
+      ? `${t.url}|event`
+      : [t.url, t.txDate ?? "", t.volume ?? "", t.price ?? "", t.person ?? ""].join("|");
+  return createHash("md5").update(key).digest("hex");
+}
+
+/** Zapisuje transakcje insiderow, pomijajac duplikaty (po fingerprincie). */
+export async function upsertInsiderTransactions(
+  txs: InsiderTransaction[],
+): Promise<{ inserted: number }> {
+  let inserted = 0;
+  for (const t of txs) {
+    const fp = insiderFingerprint(t);
+    const { rows } = await sql`
+      INSERT INTO insider_transactions
+        (fingerprint, watch_ticker, company, person, role, tx_type, instrument,
+         volume, price, currency, value, tx_date, url, published_at)
+      VALUES
+        (${fp}, ${t.watchTicker}, ${t.company}, ${t.person}, ${t.role}, ${t.txType},
+         ${t.instrument}, ${t.volume}, ${t.price}, ${t.currency}, ${t.value},
+         ${t.txDate}, ${t.url}, ${t.publishedAt})
+      ON CONFLICT (fingerprint) DO NOTHING
+      RETURNING id;
+    `;
+    if (rows.length > 0) inserted += 1;
+  }
+  return { inserted };
+}
+
+/** Distinct URL-e komunikatow juz przetworzonych — by nie pobierac PDF ponownie. */
+export async function getExistingInsiderUrls(): Promise<string[]> {
+  const { rows } = await sql<{ url: string }>`
+    SELECT DISTINCT url FROM insider_transactions;
+  `;
+  return rows.map((r) => r.url);
+}
+
+/** Transakcje insiderow dla watchlisty, najnowsze wg daty transakcji. */
+export async function getWatchlistInsiderTransactions(
+  limit = 80,
+): Promise<InsiderTransaction[]> {
+  const { rows } = await sql.query<InsiderTransaction>(
+    `SELECT
+       watch_ticker AS "watchTicker", company, person, role,
+       tx_type AS "txType", instrument,
+       volume::float8 AS "volume", price::float8 AS "price", currency,
+       value::float8 AS "value",
+       to_char(tx_date, 'YYYY-MM-DD') AS "txDate", url,
+       to_char(published_at, 'YYYY-MM-DD"T"HH24:MI') AS "publishedAt"
+     FROM insider_transactions
+     ORDER BY tx_date DESC NULLS LAST, published_at DESC NULLS LAST, created_at DESC
+     LIMIT $1;`,
+    [limit],
+  );
+  return rows;
 }
 
 // ---------- Wnioski AI (Faza 5) ----------

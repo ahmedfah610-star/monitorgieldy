@@ -8,6 +8,10 @@
     {
       "path": "/api/reports/refresh",
       "schedule": "30 6 * * *"
+    },
+    {
+      "path": "/api/insider/refresh",
+      "schedule": "45 6 * * *"
     }
   ]
 }
