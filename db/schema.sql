@@ -98,3 +98,59 @@ CREATE TABLE IF NOT EXISTS insider_transactions (
 );
 CREATE INDEX IF NOT EXISTS idx_insider_watch ON insider_transactions (watch_ticker);
 CREATE INDEX IF NOT EXISTS idx_insider_date ON insider_transactions (tx_date DESC);
+
+-- Krotkie pozycje netto z rejestru KNF (Faza 8). Czyste dane z JSON API KNF.
+CREATE TABLE IF NOT EXISTS short_positions (
+  id            SERIAL PRIMARY KEY,
+  fingerprint   TEXT NOT NULL UNIQUE,
+  watch_ticker  TEXT,
+  company       TEXT,
+  issuer_name   TEXT NOT NULL,
+  isin          TEXT,
+  holder        TEXT NOT NULL,
+  net_short_pct NUMERIC,
+  position_date DATE,
+  modify_date   DATE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_short_watch ON short_positions (watch_ticker);
+CREATE INDEX IF NOT EXISTS idx_short_date ON short_positions (position_date DESC);
+
+-- Znaczne pakiety akcji — zawiadomienia art. 69 (Faza 9).
+CREATE TABLE IF NOT EXISTS significant_holdings (
+  id           SERIAL PRIMARY KEY,
+  fingerprint  TEXT NOT NULL UNIQUE,
+  watch_ticker TEXT,
+  company      TEXT,
+  holder       TEXT,
+  direction    TEXT NOT NULL,
+  thresholds   JSONB,
+  pct_after    NUMERIC,
+  title        TEXT NOT NULL,
+  url          TEXT NOT NULL,
+  published_at TIMESTAMPTZ,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_holdings_watch ON significant_holdings (watch_ticker);
+CREATE INDEX IF NOT EXISTS idx_holdings_pub ON significant_holdings (published_at DESC);
+
+-- Dywidendy — historyczne i zapowiedziane (Faza 10). Zrodlo: kalendarz bankier.pl.
+CREATE TABLE IF NOT EXISTS dividends (
+  id            SERIAL PRIMARY KEY,
+  fingerprint   TEXT NOT NULL UNIQUE,
+  watch_ticker  TEXT,
+  company       TEXT,
+  slug          TEXT NOT NULL,
+  dividend_type TEXT,
+  record_date   DATE,
+  payment_date  DATE,
+  amount        NUMERIC,
+  currency      TEXT,
+  yield_pct     NUMERIC,
+  status        TEXT,
+  year          INTEGER,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_div_watch ON dividends (watch_ticker);
+CREATE INDEX IF NOT EXISTS idx_div_record ON dividends (record_date DESC);

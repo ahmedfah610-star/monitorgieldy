@@ -85,6 +85,76 @@ export interface InsiderTransaction {
   publishedAt: string | null;
 }
 
+/**
+ * Krotka pozycja netto z rejestru KNF (Faza 8). Zrodlo: publiczny JSON API
+ * rss.knf.gov.pl. Pokazuje kto (fundusz) gra na spadek danej spolki.
+ */
+export interface ShortPosition {
+  id?: number;
+  /** Ticker z watchlisty dopasowany po symbolu (ISSUER_NAME KNF). */
+  watchTicker: string | null;
+  company: string | null;
+  /** Nazwa/symbol emitenta wg KNF (np. "CDPROJEKT", "JSW"). */
+  issuerName: string;
+  isin: string | null;
+  /** Posiadacz pozycji krotkiej (fundusz/instytucja). */
+  holder: string;
+  /** Pozycja krotka netto w procentach kapitalu. */
+  netShortPct: number | null;
+  /** Data obliczenia pozycji (YYYY-MM-DD). */
+  positionDate: string | null;
+  /** Data ostatniej aktualizacji wpisu w rejestrze (YYYY-MM-DD). */
+  modifyDate: string | null;
+}
+
+/**
+ * Zawiadomienie o znacznym pakiecie akcji — art. 69 ustawy o ofercie (Faza 9).
+ * Wejscia/wyjscia funduszy (progi 5/10/…%). Zrodlo: komunikaty ESPI (bankier).
+ */
+export interface HoldingNotification {
+  id?: number;
+  watchTicker: string | null;
+  company: string | null;
+  /** Podmiot zglaszajacy (best-effort z tresci; moze byc null). */
+  holder: string | null;
+  /** Kierunek zmiany: 'increase' (przekroczenie w gore), 'decrease', 'other'. */
+  direction: "increase" | "decrease" | "other";
+  /** Progi wymienione w tytule, np. [5] albo [5,10]. */
+  thresholds: number[];
+  /** Udzial w glosach po transakcji, jesli dalo sie odczytac (%). */
+  pctAfter: number | null;
+  title: string;
+  url: string;
+  publishedAt: string | null;
+}
+
+/**
+ * Dywidenda spolki (Faza 10). Zrodlo: kalendarz dywidend bankier.pl.
+ * Historyczne i zapowiedziane, z dniem ustalenia prawa i dniem wyplaty.
+ */
+export interface Dividend {
+  id?: number;
+  watchTicker: string | null;
+  company: string | null;
+  /** Symbol/slug bankier (np. "CDPROJEKT"). */
+  slug: string;
+  /** Typ, np. "Dywidenda", "Dywidenda zaliczkowa", "Projekt". */
+  dividendType: string | null;
+  /** Dzien ustalenia prawa do dywidendy (record date, YYYY-MM-DD). */
+  recordDate: string | null;
+  /** Dzien wyplaty (payment date, YYYY-MM-DD). */
+  paymentDate: string | null;
+  /** Kwota na akcje. */
+  amount: number | null;
+  currency: string | null;
+  /** Stopa dywidendy w %. */
+  yieldPct: number | null;
+  /** Status: "uchwalona" | "proponowana" | "projekt" itd. */
+  status: string | null;
+  /** Rok, za ktory wyplacana jest dywidenda. */
+  year: number | null;
+}
+
 /** Wnioski AI porownujace okresy dla spolki (Faza 5). */
 export interface Conclusion {
   period: string | null;

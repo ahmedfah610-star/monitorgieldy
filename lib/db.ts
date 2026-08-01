@@ -8,6 +8,9 @@ import type {
   ExtractedFinancials,
   Conclusion,
   InsiderTransaction,
+  ShortPosition,
+  HoldingNotification,
+  Dividend,
 } from "./types";
 
 /**
@@ -127,6 +130,65 @@ export async function initSchema(): Promise<void> {
   `;
   await sql`CREATE INDEX IF NOT EXISTS idx_insider_watch ON insider_transactions (watch_ticker);`;
   await sql`CREATE INDEX IF NOT EXISTS idx_insider_date ON insider_transactions (tx_date DESC);`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS short_positions (
+      id            SERIAL PRIMARY KEY,
+      fingerprint   TEXT NOT NULL UNIQUE,
+      watch_ticker  TEXT,
+      company       TEXT,
+      issuer_name   TEXT NOT NULL,
+      isin          TEXT,
+      holder        TEXT NOT NULL,
+      net_short_pct NUMERIC,
+      position_date DATE,
+      modify_date   DATE,
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS idx_short_watch ON short_positions (watch_ticker);`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_short_date ON short_positions (position_date DESC);`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS significant_holdings (
+      id           SERIAL PRIMARY KEY,
+      fingerprint  TEXT NOT NULL UNIQUE,
+      watch_ticker TEXT,
+      company      TEXT,
+      holder       TEXT,
+      direction    TEXT NOT NULL,
+      thresholds   JSONB,
+      pct_after    NUMERIC,
+      title        TEXT NOT NULL,
+      url          TEXT NOT NULL,
+      published_at TIMESTAMPTZ,
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS idx_holdings_watch ON significant_holdings (watch_ticker);`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_holdings_pub ON significant_holdings (published_at DESC);`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS dividends (
+      id            SERIAL PRIMARY KEY,
+      fingerprint   TEXT NOT NULL UNIQUE,
+      watch_ticker  TEXT,
+      company       TEXT,
+      slug          TEXT NOT NULL,
+      dividend_type TEXT,
+      record_date   DATE,
+      payment_date  DATE,
+      amount        NUMERIC,
+      currency      TEXT,
+      yield_pct     NUMERIC,
+      status        TEXT,
+      year          INTEGER,
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS idx_div_watch ON dividends (watch_ticker);`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_div_record ON dividends (record_date DESC);`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS ai_conclusions (
@@ -378,6 +440,152 @@ export async function getWatchlistInsiderTransactions(
        to_char(published_at, 'YYYY-MM-DD"T"HH24:MI') AS "publishedAt"
      FROM insider_transactions
      ORDER BY tx_date DESC NULLS LAST, published_at DESC NULLS LAST, created_at DESC
+     LIMIT $1;`,
+    [limit],
+  );
+  return rows;
+}
+
+// ---------- Krotkie pozycje netto (rejestr KNF, Faza 8) ----------
+
+function shortFingerprint(s: ShortPosition): string {
+  const key = [s.holder, s.issuerName, s.positionDate ?? "", s.netShortPct ?? ""].join("|");
+  return createHash("md5").update(key).digest("hex");
+}
+
+/** Zapisuje pozycje krotkie, pomijajac duplikaty (po fingerprincie). */
+export async function upsertShortPositions(
+  positions: ShortPosition[],
+): Promise<{ inserted: number }> {
+  let inserted = 0;
+  for (const s of positions) {
+    const fp = shortFingerprint(s);
+    const { rows } = await sql`
+      INSERT INTO short_positions
+        (fingerprint, watch_ticker, company, issuer_name, isin, holder,
+         net_short_pct, position_date, modify_date)
+      VALUES
+        (${fp}, ${s.watchTicker}, ${s.company}, ${s.issuerName}, ${s.isin}, ${s.holder},
+         ${s.netShortPct}, ${s.positionDate}, ${s.modifyDate})
+      ON CONFLICT (fingerprint) DO NOTHING
+      RETURNING id;
+    `;
+    if (rows.length > 0) inserted += 1;
+  }
+  return { inserted };
+}
+
+/** Pozycje krotkie dla watchlisty, najnowsze wg daty obliczenia pozycji. */
+export async function getWatchlistShortPositions(limit = 200): Promise<ShortPosition[]> {
+  const { rows } = await sql.query<ShortPosition>(
+    `SELECT
+       watch_ticker AS "watchTicker", company, issuer_name AS "issuerName", isin, holder,
+       net_short_pct::float8 AS "netShortPct",
+       to_char(position_date, 'YYYY-MM-DD') AS "positionDate",
+       to_char(modify_date, 'YYYY-MM-DD') AS "modifyDate"
+     FROM short_positions
+     ORDER BY position_date DESC NULLS LAST, created_at DESC
+     LIMIT $1;`,
+    [limit],
+  );
+  return rows;
+}
+
+// ---------- Znaczne pakiety akcji — art. 69 (Faza 9) ----------
+
+/** Zapisuje zawiadomienia o znacznych pakietach, pomijajac duplikaty (po URL). */
+export async function upsertHoldingNotifications(
+  notes: HoldingNotification[],
+): Promise<{ inserted: number }> {
+  let inserted = 0;
+  for (const n of notes) {
+    const fp = createHash("md5").update(n.url).digest("hex");
+    const { rows } = await sql`
+      INSERT INTO significant_holdings
+        (fingerprint, watch_ticker, company, holder, direction, thresholds,
+         pct_after, title, url, published_at)
+      VALUES
+        (${fp}, ${n.watchTicker}, ${n.company}, ${n.holder}, ${n.direction},
+         ${JSON.stringify(n.thresholds)}::jsonb, ${n.pctAfter}, ${n.title}, ${n.url},
+         ${n.publishedAt})
+      ON CONFLICT (fingerprint) DO NOTHING
+      RETURNING id;
+    `;
+    if (rows.length > 0) inserted += 1;
+  }
+  return { inserted };
+}
+
+export async function getExistingHoldingUrls(): Promise<string[]> {
+  const { rows } = await sql<{ url: string }>`SELECT url FROM significant_holdings;`;
+  return rows.map((r) => r.url);
+}
+
+export async function getWatchlistHoldings(limit = 100): Promise<HoldingNotification[]> {
+  const { rows } = await sql.query<HoldingNotification>(
+    `SELECT
+       watch_ticker AS "watchTicker", company, holder, direction,
+       thresholds AS "thresholds", pct_after::float8 AS "pctAfter", title, url,
+       to_char(published_at, 'YYYY-MM-DD"T"HH24:MI') AS "publishedAt"
+     FROM significant_holdings
+     ORDER BY published_at DESC NULLS LAST, created_at DESC
+     LIMIT $1;`,
+    [limit],
+  );
+  return rows;
+}
+
+// ---------- Dywidendy (Faza 10) ----------
+
+/** Tozsamosc dywidendy: spolka + rok + typ (mutowalne pola aktualizujemy). */
+function dividendFingerprint(d: Dividend): string {
+  const key = [d.slug, d.year ?? "", d.dividendType ?? ""].join("|");
+  return createHash("md5").update(key).digest("hex");
+}
+
+/**
+ * Zapisuje dywidendy; przy powtorce (ta sama spolka/rok/typ) AKTUALIZUJE daty,
+ * kwote, stope i status — bo dywidenda przechodzi z "proponowana" w "uchwalona"
+ * i dochodza daty. Zwraca liczbe nowo dodanych.
+ */
+export async function upsertDividends(dividends: Dividend[]): Promise<{ inserted: number }> {
+  let inserted = 0;
+  for (const d of dividends) {
+    const fp = dividendFingerprint(d);
+    const { rows } = await sql`
+      INSERT INTO dividends
+        (fingerprint, watch_ticker, company, slug, dividend_type, record_date,
+         payment_date, amount, currency, yield_pct, status, year)
+      VALUES
+        (${fp}, ${d.watchTicker}, ${d.company}, ${d.slug}, ${d.dividendType}, ${d.recordDate},
+         ${d.paymentDate}, ${d.amount}, ${d.currency}, ${d.yieldPct}, ${d.status}, ${d.year})
+      ON CONFLICT (fingerprint) DO UPDATE SET
+        record_date = EXCLUDED.record_date,
+        payment_date = EXCLUDED.payment_date,
+        amount = EXCLUDED.amount,
+        currency = EXCLUDED.currency,
+        yield_pct = EXCLUDED.yield_pct,
+        status = EXCLUDED.status,
+        updated_at = now()
+      RETURNING (xmax = 0) AS inserted;
+    `;
+    if (rows[0]?.inserted) inserted += 1;
+  }
+  return { inserted };
+}
+
+/** Dywidendy dla watchlisty; najblizsze/najnowsze wg daty ustalenia prawa. */
+export async function getWatchlistDividends(limit = 200): Promise<Dividend[]> {
+  const { rows } = await sql.query<Dividend>(
+    `SELECT
+       watch_ticker AS "watchTicker", company, slug,
+       dividend_type AS "dividendType",
+       to_char(record_date, 'YYYY-MM-DD') AS "recordDate",
+       to_char(payment_date, 'YYYY-MM-DD') AS "paymentDate",
+       amount::float8 AS "amount", currency, yield_pct::float8 AS "yieldPct",
+       status, year
+     FROM dividends
+     ORDER BY record_date DESC NULLS LAST, year DESC NULLS LAST
      LIMIT $1;`,
     [limit],
   );

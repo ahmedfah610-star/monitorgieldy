@@ -31,6 +31,15 @@ export default function RootLayout({
               <Link href="/insider" className="hover:text-neutral-100">
                 Insiderzy
               </Link>
+              <Link href="/short" className="hover:text-neutral-100">
+                Shorty
+              </Link>
+              <Link href="/holdings" className="hover:text-neutral-100">
+                Pakiety
+              </Link>
+              <Link href="/dividends" className="hover:text-neutral-100">
+                Dywidendy
+              </Link>
               <Link href="/watchlist" className="hover:text-neutral-100">
                 Watchlista
               </Link>

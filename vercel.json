@@ -12,6 +12,18 @@
     {
       "path": "/api/insider/refresh",
       "schedule": "45 6 * * *"
+    },
+    {
+      "path": "/api/short/refresh",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/holdings/refresh",
+      "schedule": "15 7 * * *"
+    },
+    {
+      "path": "/api/dividends/refresh",
+      "schedule": "30 7 * * *"
     }
   ]
 }
