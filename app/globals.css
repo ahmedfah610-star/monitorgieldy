@@ -4,8 +4,49 @@
 
 :root {
   color-scheme: dark;
+  --accent: 59 130 246; /* blue-500 w RGB (do rgba(var(--accent)/a)) */
 }
 
 body {
-  @apply bg-neutral-950 text-neutral-100 antialiased;
+  @apply font-sans text-neutral-100 antialiased;
+  min-height: 100vh;
+  /* Subtelna poswiata u gory zamiast plaskiej czerni — daje glebie bez halasu. */
+  background:
+    radial-gradient(900px 500px at 50% -8%, rgb(var(--accent) / 0.07), transparent 60%),
+    #09090b;
+  background-attachment: fixed;
+}
+
+/* Ladniejsze zaznaczenie i pasek przewijania — drobiazgi, ktore robia roznice. */
+::selection {
+  background: rgb(var(--accent) / 0.32);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2a2a2e transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2a2e;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+  background-clip: padding-box;
+}
+
+:focus-visible {
+  outline: 2px solid rgb(var(--accent) / 0.6);
+  outline-offset: 2px;
+}
+
+/* Liczby w tabelach — jednolita szerokosc cyfr. */
+table {
+  font-variant-numeric: tabular-nums;
 }
