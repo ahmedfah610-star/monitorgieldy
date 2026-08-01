@@ -12,6 +12,7 @@ import type {
   HoldingNotification,
   Dividend,
   CompanyOutlook,
+  PortfolioPosition,
 } from "./types";
 
 /**
@@ -213,6 +214,19 @@ export async function initSchema(): Promise<void> {
     );
   `;
   await sql`CREATE INDEX IF NOT EXISTS idx_outlook_ticker ON company_outlook (ticker, created_at DESC);`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS portfolio (
+      id         SERIAL PRIMARY KEY,
+      name       TEXT NOT NULL,
+      ticker     TEXT NOT NULL,
+      market     TEXT NOT NULL CHECK (market IN ('PL', 'US')),
+      amount     NUMERIC NOT NULL,
+      currency   TEXT NOT NULL CHECK (currency IN ('PLN', 'USD')),
+      sector     TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `;
 }
 
 // ---------- Watchlist ----------
@@ -774,4 +788,37 @@ export async function getLatestOutlooks(): Promise<Record<string, CompanyOutlook
   const map: Record<string, CompanyOutlook> = {};
   for (const r of rows) map[r.ticker] = { ...r.outlook, model: r.model, createdAt: r.createdAt };
   return map;
+}
+
+// ---------- Portfel (Faza 14) ----------
+
+/** Kurs USD->PLN uzyty do przeliczen (staly, wg zalozenia). */
+export const USD_PLN = 3.75;
+
+export async function getPortfolio(): Promise<PortfolioPosition[]> {
+  const { rows } = await sql<PortfolioPosition & { amount: number }>`
+    SELECT id, name, ticker, market, amount::float8 AS amount, currency, sector
+    FROM portfolio
+    ORDER BY created_at DESC;
+  `;
+  return rows.map((r) => ({
+    ...r,
+    amountPln: r.currency === "USD" ? r.amount * USD_PLN : r.amount,
+  }));
+}
+
+export async function addPortfolioPosition(
+  p: Omit<PortfolioPosition, "id" | "amountPln">,
+): Promise<PortfolioPosition> {
+  const { rows } = await sql<PortfolioPosition & { amount: number }>`
+    INSERT INTO portfolio (name, ticker, market, amount, currency, sector)
+    VALUES (${p.name}, ${p.ticker}, ${p.market}, ${p.amount}, ${p.currency}, ${p.sector})
+    RETURNING id, name, ticker, market, amount::float8 AS amount, currency, sector;
+  `;
+  const r = rows[0];
+  return { ...r, amountPln: r.currency === "USD" ? r.amount * USD_PLN : r.amount };
+}
+
+export async function deletePortfolioPosition(id: number): Promise<void> {
+  await sql`DELETE FROM portfolio WHERE id = ${id};`;
 }

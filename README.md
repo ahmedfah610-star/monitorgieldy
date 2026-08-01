@@ -172,6 +172,18 @@ z dniem ustalenia prawa (record date) i dniem wypłaty.
   daty), wpis się aktualizuje. Odświeżanie: `/dividends` (POST `/api/dividends/refresh`) lub
   zbiorczo `/api/refresh-all`.
 
+## Twoje portfolio (Faza 14)
+
+Strona `/portfolio` — wpisujesz spółki, które masz, i wielkość pozycji w **PLN lub USD**
+(USD przeliczane na PLN po stałym kursie **3,75**). **Branża podpina się automatycznie** z
+wbudowanej mapy (`lib/sectors.ts`, cały katalog GPW + popularne spółki US; można nadpisać ręcznie).
+
+- Podsumowanie: rozbicie portfela na branże (% i PLN) + **deterministyczna sugestia** dywersyfikacji
+  — np. „Masz 80% w branży Technologia i IT — rozważ rozłożenie na: Bankowość, Energetyka,
+  Ochrona zdrowia". Próg koncentracji: 40%. Bez AI.
+- Pozycje zapisywane w tabeli `portfolio` (wymaga bazy). Yahoo `assetProfile` (sektor) wymaga
+  crumba/401, dlatego mapa branż jest wbudowana i przewidywalna.
+
 ## Ranking atrakcyjności (Faza 13)
 
 Strona `/ranking` to **wewnętrzny, deterministyczny ranking** spółek z watchlisty — wynik 0-100
@@ -222,6 +234,7 @@ app/
   dividends/page.tsx             # Dywidendy — historyczne i zapowiedziane (Faza 10)
   outlook/page.tsx               # Perspektywy — atuty/szanse/zagrożenia z AI (Faza 12)
   ranking/page.tsx               # Ranking atrakcyjności — wynik z sygnałów (Faza 13)
+  portfolio/page.tsx             # Twoje portfolio — pozycje, branże, dywersyfikacja (Faza 14)
   watchlist/page.tsx             # Edycja watchlisty (Faza 0)
   login/page.tsx                 # Ekran logowania (gdy gate włączony)
   api/
@@ -243,6 +256,7 @@ app/
     refresh-all/route.ts         # Zbiorcze odświeżanie wszystkich źródeł (jeden cron)
     outlook/route.ts             # Perspektywy: odczyt + generowanie (AI, cache)
     ranking/route.ts             # Ranking atrakcyjności (liczony z sygnałów, bez AI)
+    portfolio/route.ts           # Portfel: odczyt + dodawanie (auto-branża) + usuwanie
     watchlist/route.ts           # CRUD watchlisty
     init-db/route.ts             # Tworzenie tabel
     login/route.ts               # Logowanie
@@ -254,6 +268,7 @@ lib/
   conclusions.ts                         # wnioski AI porównujące okresy (Faza 5)
   outlook.ts                             # perspektywy AI z zebranych sygnałów (Faza 12)
   ranking.ts                             # ranking atrakcyjności — scoring z sygnałów (Faza 13)
+  portfolio.ts  sectors.ts               # portfel + mapa branż (Faza 14)
   insider.ts                             # transakcje insiderów — art. 19 MAR z PDF (Faza 7)
   knf.ts                                 # krótkie pozycje netto — rejestr KNF (Faza 8)
   holdings.ts                            # znaczne pakiety akcji — art. 69 (Faza 9)

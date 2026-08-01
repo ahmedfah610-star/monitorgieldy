@@ -25,6 +25,9 @@ export default function RootLayout({
               <Link href="/ranking" className="hover:text-neutral-100">
                 Ranking
               </Link>
+              <Link href="/portfolio" className="hover:text-neutral-100">
+                Portfolio
+              </Link>
               <Link href="/recommendations" className="hover:text-neutral-100">
                 Rekomendacje
               </Link>

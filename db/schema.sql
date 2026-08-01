@@ -87,6 +87,18 @@ CREATE TABLE IF NOT EXISTS company_outlook (
 );
 CREATE INDEX IF NOT EXISTS idx_outlook_ticker ON company_outlook (ticker, created_at DESC);
 
+-- Portfel uzytkownika (Faza 14). Kwota w PLN/USD (USD przeliczane po stalym kursie).
+CREATE TABLE IF NOT EXISTS portfolio (
+  id         SERIAL PRIMARY KEY,
+  name       TEXT NOT NULL,
+  ticker     TEXT NOT NULL,
+  market     TEXT NOT NULL CHECK (market IN ('PL', 'US')),
+  amount     NUMERIC NOT NULL,
+  currency   TEXT NOT NULL CHECK (currency IN ('PLN', 'USD')),
+  sector     TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Transakcje osob zarzadzajacych — art. 19 MAR (Faza 7). Parsowane z PDF, bez AI.
 CREATE TABLE IF NOT EXISTS insider_transactions (
   id           SERIAL PRIMARY KEY,

@@ -194,6 +194,36 @@ export interface RankingEntry {
   components: RankingComponent[];
 }
 
+/** Pozycja w portfelu (Faza 14). Kwota w PLN lub USD (USD przeliczane po 3,75). */
+export interface PortfolioPosition {
+  id?: number;
+  name: string;
+  ticker: string;
+  market: Market;
+  /** Wielkosc pozycji w walucie wpisanej. */
+  amount: number;
+  currency: "PLN" | "USD";
+  /** Wartosc przeliczona na PLN. */
+  amountPln: number;
+  /** Branza (auto-podpieta z mapy albo recznie). */
+  sector: string;
+}
+
+export interface SectorAllocation {
+  sector: string;
+  amountPln: number;
+  pct: number;
+}
+
+export interface PortfolioSummary {
+  totalPln: number;
+  allocations: SectorAllocation[];
+  topSector: string | null;
+  topPct: number;
+  /** Deterministyczna sugestia dywersyfikacji. */
+  suggestion: string;
+}
+
 /** Wnioski AI porownujace okresy dla spolki (Faza 5). */
 export interface Conclusion {
   period: string | null;
