@@ -1,4 +1,4 @@
-import { hasDb, getWatchlist, getCompanySignals, type CompanySignals } from "./db";
+import { hasDb, getWatchlist, getCompanySignals, getMacroScores, type CompanySignals } from "./db";
 import type { RankingComponent, RankingEntry, Market } from "./types";
 
 /**
@@ -15,11 +15,12 @@ import type { RankingComponent, RankingEntry, Market } from "./types";
 const HORIZON_DAYS = 180;
 
 const WEIGHTS = {
-  consensus: 0.25, // rekomendacje analitykow
-  insider: 0.2, // transakcje osob zarzadzajacych
-  short: 0.18, // krotkie pozycje (KNF)
-  financials: 0.2, // trend wynikow r/r
-  holdings: 0.12, // znaczne pakiety (art. 69)
+  consensus: 0.23, // rekomendacje analitykow
+  insider: 0.18, // transakcje osob zarzadzajacych
+  short: 0.16, // krotkie pozycje (KNF)
+  financials: 0.18, // trend wynikow r/r
+  holdings: 0.1, // znaczne pakiety (art. 69)
+  macro: 0.1, // koniunktura makro rynku (PL/US)
   dividend: 0.05, // stopa dywidendy
 } as const;
 
@@ -167,12 +168,27 @@ function dividendComp(divs: CompanySignals["dividends"]): RankingComponent {
   };
 }
 
+/** Koniunktura makro rynku (wspolna dla wszystkich spolek PL albo US). */
+function macroComp(market: Market, macroScoreRaw: number | null | undefined): RankingComponent {
+  const w = WEIGHTS.macro;
+  if (macroScoreRaw === null || macroScoreRaw === undefined)
+    return { key: "macro", label: "Koniunktura", score: null, weight: w, detail: "brak" };
+  return {
+    key: "macro",
+    label: "Koniunktura",
+    score: clamp(macroScoreRaw),
+    weight: w,
+    detail: `klimat ${market} ${Math.round((macroScoreRaw + 1) * 50)}/100`,
+  };
+}
+
 /** Czysta funkcja: liczy pozycje rankingu z sygnalow (bez I/O). */
 export function scoreCompany(
   company: string,
   ticker: string,
   market: Market,
   s: CompanySignals,
+  macroScoreRaw: number | null = null,
 ): RankingEntry {
   const components = [
     consensusComp(s.recommendations),
@@ -180,6 +196,7 @@ export function scoreCompany(
     shortComp(s.shorts),
     financialsComp(s.financials),
     holdingsComp(s.holdings),
+    macroComp(market, macroScoreRaw),
     dividendComp(s.dividends),
   ];
   const active = components.filter((c) => c.score !== null);
@@ -198,11 +215,11 @@ export function scoreCompany(
 /** Liczy ranking dla calej watchlisty, malejaco wg wyniku. */
 export async function computeRankings(): Promise<{ ranking: RankingEntry[]; usingDb: boolean }> {
   if (!hasDb()) return { ranking: [], usingDb: false };
-  const watchlist = await getWatchlist();
+  const [watchlist, macroScores] = await Promise.all([getWatchlist(), getMacroScores()]);
   const entries = await Promise.all(
     watchlist.map(async (w) => {
       const signals = await getCompanySignals(w.ticker);
-      return scoreCompany(w.name, w.ticker, w.market, signals);
+      return scoreCompany(w.name, w.ticker, w.market, signals, macroScores[w.market] ?? null);
     }),
   );
   entries.sort((a, b) => b.score - a.score || b.coverage - a.coverage);

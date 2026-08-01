@@ -184,6 +184,20 @@ wbudowanej mapy (`lib/sectors.ts`, cały katalog GPW + popularne spółki US; mo
 - Pozycje zapisywane w tabeli `portfolio` (wymaga bazy). Yahoo `assetProfile` (sektor) wymaga
   crumba/401, dlatego mapa branż jest wbudowana i przewidywalna.
 
+## Koniunktura makro PL/USA (Faza 15)
+
+Strona `/macro` — klimat makroekonomiczny Polski i USA obok siebie: **inflacja CPI, wzrost PKB,
+bezrobocie** (World Bank, ostatnie dostępne roczne, ze strzałką kierunku r/r) + **kursy NBP**
+(USD/PLN, EUR/PLN). Z tego liczymy „klimat" 0-100 dla każdego rynku.
+
+- Źródła **keyless**: World Bank API + NBP API. Snapshot cache'owany w `macro_snapshot`,
+  odświeżany przyciskiem lub przez `refresh-all`. Bez AI.
+- **Wchodzi do rankingu (Faza 13)** jako czynnik `Koniunktura` (waga 10%) — wspólny dla
+  wszystkich spółek danego rynku (PL dostają klimat PL, US → USA). To realizuje „makro jako
+  kolejny czynnik oceniający atrakcyjność".
+- To kluczowe **odczyty** makro (roczne WB + dzienny kurs), nie live feed newsów — kalendarz
+  wydarzeń wymagałby płatnego API.
+
 ## Ranking atrakcyjności (Faza 13)
 
 Strona `/ranking` to **wewnętrzny, deterministyczny ranking** spółek z watchlisty — wynik 0-100
@@ -235,6 +249,7 @@ app/
   outlook/page.tsx               # Perspektywy — atuty/szanse/zagrożenia z AI (Faza 12)
   ranking/page.tsx               # Ranking atrakcyjności — wynik z sygnałów (Faza 13)
   portfolio/page.tsx             # Twoje portfolio — pozycje, branże, dywersyfikacja (Faza 14)
+  macro/page.tsx                 # Koniunktura makro PL/USA (Faza 15)
   watchlist/page.tsx             # Edycja watchlisty (Faza 0)
   login/page.tsx                 # Ekran logowania (gdy gate włączony)
   api/
@@ -257,6 +272,7 @@ app/
     outlook/route.ts             # Perspektywy: odczyt + generowanie (AI, cache)
     ranking/route.ts             # Ranking atrakcyjności (liczony z sygnałów, bez AI)
     portfolio/route.ts           # Portfel: odczyt + dodawanie (auto-branża) + usuwanie
+    macro/route.ts               # Koniunktura makro: odczyt + odświeżanie (WB + NBP)
     watchlist/route.ts           # CRUD watchlisty
     init-db/route.ts             # Tworzenie tabel
     login/route.ts               # Logowanie
@@ -269,6 +285,7 @@ lib/
   outlook.ts                             # perspektywy AI z zebranych sygnałów (Faza 12)
   ranking.ts                             # ranking atrakcyjności — scoring z sygnałów (Faza 13)
   portfolio.ts  sectors.ts               # portfel + mapa branż (Faza 14)
+  macro.ts                               # koniunktura makro PL/USA — World Bank + NBP (Faza 15)
   insider.ts                             # transakcje insiderów — art. 19 MAR z PDF (Faza 7)
   knf.ts                                 # krótkie pozycje netto — rejestr KNF (Faza 8)
   holdings.ts                            # znaczne pakiety akcji — art. 69 (Faza 9)

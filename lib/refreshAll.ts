@@ -4,6 +4,7 @@ import { refreshInsiderTransactions } from "./insider";
 import { refreshShortPositions } from "./knf";
 import { refreshHoldingNotifications } from "./holdings";
 import { refreshDividends } from "./dividends";
+import { refreshMacro } from "./macro";
 
 /**
  * Uruchamia wszystkie odswiezenia zrodel PL naraz (Faza 11). Dzieki temu
@@ -26,6 +27,7 @@ export async function refreshAll(): Promise<RefreshAllSummary> {
     dividends: refreshDividends,
     insider: refreshInsiderTransactions,
     holdings: refreshHoldingNotifications,
+    macro: refreshMacro,
   };
 
   const names = Object.keys(tasks);

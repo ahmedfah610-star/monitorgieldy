@@ -13,6 +13,7 @@ import type {
   Dividend,
   CompanyOutlook,
   PortfolioPosition,
+  MarketMacro,
 } from "./types";
 
 /**
@@ -214,6 +215,15 @@ export async function initSchema(): Promise<void> {
     );
   `;
   await sql`CREATE INDEX IF NOT EXISTS idx_outlook_ticker ON company_outlook (ticker, created_at DESC);`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS macro_snapshot (
+      market     TEXT PRIMARY KEY CHECK (market IN ('PL', 'US')),
+      score_raw  NUMERIC NOT NULL,
+      payload    JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `;
 
   await sql`
     CREATE TABLE IF NOT EXISTS portfolio (
@@ -821,4 +831,38 @@ export async function addPortfolioPosition(
 
 export async function deletePortfolioPosition(id: number): Promise<void> {
   await sql`DELETE FROM portfolio WHERE id = ${id};`;
+}
+
+// ---------- Koniunktura makro (Faza 15) ----------
+
+export async function upsertMacro(m: MarketMacro): Promise<void> {
+  await sql`
+    INSERT INTO macro_snapshot (market, score_raw, payload, updated_at)
+    VALUES (${m.market}, ${m.scoreRaw}, ${JSON.stringify(m)}::jsonb, now())
+    ON CONFLICT (market) DO UPDATE SET
+      score_raw = EXCLUDED.score_raw,
+      payload = EXCLUDED.payload,
+      updated_at = now();
+  `;
+}
+
+/** Zapisane makro dla obu rynkow (mapa 'PL'|'US' -> MarketMacro). */
+export async function getMacroSnapshots(): Promise<Record<string, MarketMacro>> {
+  const { rows } = await sql<{ market: string; payload: MarketMacro; updatedAt: string }>`
+    SELECT market, payload, to_char(updated_at, 'YYYY-MM-DD"T"HH24:MI') AS "updatedAt"
+    FROM macro_snapshot;
+  `;
+  const map: Record<string, MarketMacro> = {};
+  for (const r of rows) map[r.market] = { ...r.payload, updatedAt: r.updatedAt };
+  return map;
+}
+
+/** Wynik klimatu w [-1,1] per rynek — dla rankingu (null gdy brak). */
+export async function getMacroScores(): Promise<Record<string, number | null>> {
+  const { rows } = await sql<{ market: string; scoreRaw: number }>`
+    SELECT market, score_raw::float8 AS "scoreRaw" FROM macro_snapshot;
+  `;
+  const map: Record<string, number | null> = { PL: null, US: null };
+  for (const r of rows) map[r.market] = r.scoreRaw;
+  return map;
 }

@@ -224,6 +224,29 @@ export interface PortfolioSummary {
   suggestion: string;
 }
 
+/** Wskaznik makro (Faza 15). */
+export interface MacroIndicator {
+  key: string;
+  label: string;
+  value: number | null;
+  prevValue: number | null;
+  year: string | null;
+  unit: string;
+}
+
+/** Koniunktura makro dla rynku (PL albo US). */
+export interface MarketMacro {
+  market: Market;
+  /** Wynik klimatu 0-100 (50 = neutralnie). */
+  score: number;
+  /** Ten sam wynik w [-1,1] — do rankingu. */
+  scoreRaw: number;
+  indicators: MacroIndicator[];
+  fx?: { usdPln: number | null; eurPln: number | null; date: string | null };
+  highlights: string[];
+  updatedAt?: string;
+}
+
 /** Wnioski AI porownujace okresy dla spolki (Faza 5). */
 export interface Conclusion {
   period: string | null;

@@ -87,6 +87,14 @@ CREATE TABLE IF NOT EXISTS company_outlook (
 );
 CREATE INDEX IF NOT EXISTS idx_outlook_ticker ON company_outlook (ticker, created_at DESC);
 
+-- Koniunktura makro PL/US (Faza 15). Snapshot z World Bank + NBP.
+CREATE TABLE IF NOT EXISTS macro_snapshot (
+  market     TEXT PRIMARY KEY CHECK (market IN ('PL', 'US')),
+  score_raw  NUMERIC NOT NULL,
+  payload    JSONB NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Portfel uzytkownika (Faza 14). Kwota w PLN/USD (USD przeliczane po stalym kursie).
 CREATE TABLE IF NOT EXISTS portfolio (
   id         SERIAL PRIMARY KEY,

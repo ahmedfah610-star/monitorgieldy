@@ -28,6 +28,9 @@ export default function RootLayout({
               <Link href="/portfolio" className="hover:text-neutral-100">
                 Portfolio
               </Link>
+              <Link href="/macro" className="hover:text-neutral-100">
+                Makro
+              </Link>
               <Link href="/recommendations" className="hover:text-neutral-100">
                 Rekomendacje
               </Link>
