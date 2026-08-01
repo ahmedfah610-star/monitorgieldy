@@ -32,20 +32,31 @@ export default function WatchlistPage() {
     );
   }, [search]);
 
-  async function addFromCatalog(c: (typeof GPW_COMPANIES)[number]) {
+  // Klik w katalogu: dodaje spolke, a gdy juz jest na watchliscie — odznacza
+  // (usuwa ja i jej dane). Dzieki temu „✓" dziala jak przelacznik.
+  async function toggleCatalog(c: (typeof GPW_COMPANIES)[number]) {
+    const existing = items.find(
+      (i) => i.market === "PL" && i.ticker.toLowerCase() === c.ticker.toLowerCase(),
+    );
     setAddingTicker(c.ticker);
     setError(null);
     try {
-      const res = await fetch("/api/watchlist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ticker: c.ticker, name: c.name, market: "PL", bankierSymbol: c.bankierSymbol }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+      if (existing) {
+        const res = await fetch(`/api/watchlist?id=${existing.id}`, { method: "DELETE" });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+      } else {
+        const res = await fetch("/api/watchlist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ticker: c.ticker, name: c.name, market: "PL", bankierSymbol: c.bankierSymbol }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+      }
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Nie udalo sie dodac spolki.");
+      setError(e instanceof Error ? e.message : "Nie udalo sie zaktualizowac watchlisty.");
     } finally {
       setAddingTicker(null);
     }
@@ -203,23 +214,26 @@ export default function WatchlistPage() {
         <div className="grid max-h-80 grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3 lg:grid-cols-4">
           {catalog.map((c) => {
             const added = plTickers.has(c.ticker);
-            const adding = addingTicker === c.ticker;
+            const busy = addingTicker === c.ticker;
             return (
               <button
                 key={c.ticker}
-                onClick={() => addFromCatalog(c)}
-                disabled={added || adding || usingFallback}
-                title={c.bankierSymbol}
-                className={`flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-left text-sm transition ${
+                onClick={() => toggleCatalog(c)}
+                disabled={busy || usingFallback}
+                title={added ? "Na watchliście — kliknij, aby usunąć" : c.bankierSymbol}
+                className={`group flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-left text-sm transition disabled:opacity-50 ${
                   added
-                    ? "border-emerald-900 bg-emerald-950/40 text-emerald-300"
-                    : "border-neutral-700 text-neutral-200 hover:border-blue-600 hover:text-blue-300 disabled:opacity-50"
+                    ? "border-emerald-900 bg-emerald-950/40 text-emerald-300 hover:border-red-800 hover:bg-red-950/40 hover:text-red-300"
+                    : "border-neutral-700 text-neutral-200 hover:border-blue-600 hover:text-blue-300"
                 }`}
               >
                 <span className="truncate">
                   {c.name} <span className="text-xs text-neutral-500">{c.ticker.toUpperCase()}</span>
                 </span>
-                <span className="shrink-0 text-xs">{added ? "✓" : adding ? "…" : "+"}</span>
+                <span className="shrink-0 text-xs">
+                  {busy ? "…" : added ? <span className="group-hover:hidden">✓</span> : "+"}
+                  {added && !busy && <span className="hidden group-hover:inline">✕</span>}
+                </span>
               </button>
             );
           })}

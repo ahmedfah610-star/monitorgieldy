@@ -231,8 +231,29 @@ export async function addWatchlistItem(
   return rows[0];
 }
 
+/**
+ * Usuwa pozycje z watchlisty i KASKADOWO wszystkie jej dane (raporty, shorty,
+ * insiderzy, pakiety, dywidendy, rekomendacje, wnioski, notowania) — tak by
+ * usunieta spolka zniknela ze wszystkich widokow. Jesli ten sam ticker jest
+ * jeszcze na watchliscie na innym rynku, powiazanych danych nie ruszamy.
+ */
 export async function deleteWatchlistItem(id: number): Promise<void> {
+  const { rows } = await sql<{ ticker: string }>`SELECT ticker FROM watchlist WHERE id = ${id};`;
   await sql`DELETE FROM watchlist WHERE id = ${id};`;
+  const ticker = rows[0]?.ticker;
+  if (!ticker) return;
+
+  const { rows: still } = await sql`SELECT 1 FROM watchlist WHERE ticker = ${ticker} LIMIT 1;`;
+  if (still.length > 0) return; // ten sam ticker nadal obserwowany (inny rynek)
+
+  await sql`DELETE FROM recommendations WHERE watch_ticker = ${ticker};`;
+  await sql`DELETE FROM reports WHERE watch_ticker = ${ticker};`;
+  await sql`DELETE FROM insider_transactions WHERE watch_ticker = ${ticker};`;
+  await sql`DELETE FROM short_positions WHERE watch_ticker = ${ticker};`;
+  await sql`DELETE FROM significant_holdings WHERE watch_ticker = ${ticker};`;
+  await sql`DELETE FROM dividends WHERE watch_ticker = ${ticker};`;
+  await sql`DELETE FROM ai_conclusions WHERE ticker = ${ticker};`;
+  await sql`DELETE FROM price_snapshots WHERE ticker = ${ticker};`;
 }
 
 // ---------- Recommendations ----------
