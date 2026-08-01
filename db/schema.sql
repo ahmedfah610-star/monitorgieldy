@@ -77,6 +77,16 @@ CREATE TABLE IF NOT EXISTS ai_conclusions (
 );
 CREATE INDEX IF NOT EXISTS idx_concl_ticker ON ai_conclusions (ticker, created_at DESC);
 
+-- Perspektywy spolki — atuty/szanse/zagrozenia z AI (Faza 12). Cache per spolka.
+CREATE TABLE IF NOT EXISTS company_outlook (
+  id          SERIAL PRIMARY KEY,
+  ticker      TEXT NOT NULL,
+  outlook     JSONB NOT NULL,
+  model       TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_outlook_ticker ON company_outlook (ticker, created_at DESC);
+
 -- Transakcje osob zarzadzajacych — art. 19 MAR (Faza 7). Parsowane z PDF, bez AI.
 CREATE TABLE IF NOT EXISTS insider_transactions (
   id           SERIAL PRIMARY KEY,

@@ -172,6 +172,19 @@ z dniem ustalenia prawa (record date) i dniem wypłaty.
   daty), wpis się aktualizuje. Odświeżanie: `/dividends` (POST `/api/dividends/refresh`) lub
   zbiorczo `/api/refresh-all`.
 
+## Perspektywy spółek (Faza 12)
+
+Strona `/outlook` to analiza AI **ugruntowana we wszystkich zebranych sygnałach** — dla każdej
+spółki z watchlisty Claude syntetyzuje **atuty obecne**, **szanse** i **zagrożenia na przyszłość**.
+
+- Kontekst z bazy: wyniki finansowe, konsensus rekomendacji, transakcje insiderów, krótkie
+  pozycje KNF, znaczne pakiety (art. 69) i dywidendy — złożone w zwięzły opis i wysłane do modelu
+  z wymuszonym schematem JSON. To wyróżnik: nikt nie łączy tych sygnałów w jeden wyprzedzający obraz.
+- **Token-frugalnie:** analiza na żądanie (przycisk per spółka), wynik cache'owany w
+  `company_outlook`; ponowna analiza tylko na wyraźne kliknięcie (z potwierdzeniem). Model wg
+  `ANTHROPIC_MODEL` (domyślnie Haiku).
+- Wymaga `ANTHROPIC_API_KEY`. To narzędzie informacyjne, nie doradztwo inwestycyjne.
+
 ## Zbiorcze odświeżanie i cron (Faza 11)
 
 Zamiast osobnego crona na każde źródło (limit planu Hobby na Vercelu), jest **jeden**
@@ -194,6 +207,7 @@ app/
   short/page.tsx                 # Krótkie pozycje netto — rejestr KNF (Faza 8)
   holdings/page.tsx              # Znaczne pakiety akcji — art. 69 (Faza 9)
   dividends/page.tsx             # Dywidendy — historyczne i zapowiedziane (Faza 10)
+  outlook/page.tsx               # Perspektywy — atuty/szanse/zagrożenia z AI (Faza 12)
   watchlist/page.tsx             # Edycja watchlisty (Faza 0)
   login/page.tsx                 # Ekran logowania (gdy gate włączony)
   api/
@@ -213,6 +227,7 @@ app/
     dividends/route.ts           # Odczyt dywidend
     dividends/refresh/route.ts   # Dywidendy: pobranie z kalendarza bankier (ręcznie i cron)
     refresh-all/route.ts         # Zbiorcze odświeżanie wszystkich źródeł (jeden cron)
+    outlook/route.ts             # Perspektywy: odczyt + generowanie (AI, cache)
     watchlist/route.ts           # CRUD watchlisty
     init-db/route.ts             # Tworzenie tabel
     login/route.ts               # Logowanie
@@ -222,6 +237,7 @@ lib/
   espi.ts  reports.ts                    # raporty okresowe (Faza 3)
   extract.ts                             # ekstrakcja liczb przez Claude (Faza 4)
   conclusions.ts                         # wnioski AI porównujące okresy (Faza 5)
+  outlook.ts                             # perspektywy AI z zebranych sygnałów (Faza 12)
   insider.ts                             # transakcje insiderów — art. 19 MAR z PDF (Faza 7)
   knf.ts                                 # krótkie pozycje netto — rejestr KNF (Faza 8)
   holdings.ts                            # znaczne pakiety akcji — art. 69 (Faza 9)

@@ -11,6 +11,7 @@ import type {
   ShortPosition,
   HoldingNotification,
   Dividend,
+  CompanyOutlook,
 } from "./types";
 
 /**
@@ -201,6 +202,17 @@ export async function initSchema(): Promise<void> {
     );
   `;
   await sql`CREATE INDEX IF NOT EXISTS idx_concl_ticker ON ai_conclusions (ticker, created_at DESC);`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS company_outlook (
+      id          SERIAL PRIMARY KEY,
+      ticker      TEXT NOT NULL,
+      outlook     JSONB NOT NULL,
+      model       TEXT,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS idx_outlook_ticker ON company_outlook (ticker, created_at DESC);`;
 }
 
 // ---------- Watchlist ----------
@@ -660,5 +672,106 @@ export async function getLatestConclusions(): Promise<Record<string, Conclusion>
   `;
   const map: Record<string, Conclusion> = {};
   for (const r of rows) map[r.ticker] = { period: r.period, text: r.text, createdAt: r.createdAt };
+  return map;
+}
+
+// ---------- Perspektywy spolki (Faza 12) ----------
+
+/** Kompletny zestaw zebranych sygnalow dla jednej spolki — kontekst dla AI. */
+export interface CompanySignals {
+  financials: ExtractedReportRow[];
+  recommendations: Recommendation[];
+  insider: InsiderTransaction[];
+  shorts: ShortPosition[];
+  holdings: HoldingNotification[];
+  dividends: Dividend[];
+}
+
+/** Zbiera wszystkie sygnaly danej spolki (po tickerze) do analizy perspektyw. */
+export async function getCompanySignals(ticker: string): Promise<CompanySignals> {
+  const [financials, recs, insider, shorts, holdings, dividends] = await Promise.all([
+    getExtractedReports(ticker, 4),
+    sql.query<Recommendation>(
+      `SELECT ${REC_COLUMNS} FROM recommendations WHERE watch_ticker = $1
+       ORDER BY rec_date DESC NULLS LAST, created_at DESC LIMIT 10;`,
+      [ticker],
+    ),
+    sql.query<InsiderTransaction>(
+      `SELECT watch_ticker AS "watchTicker", company, person, role, tx_type AS "txType",
+        instrument, volume::float8 AS "volume", price::float8 AS "price", currency,
+        value::float8 AS "value", to_char(tx_date,'YYYY-MM-DD') AS "txDate", url,
+        to_char(published_at,'YYYY-MM-DD"T"HH24:MI') AS "publishedAt"
+       FROM insider_transactions WHERE watch_ticker = $1
+       ORDER BY tx_date DESC NULLS LAST, created_at DESC LIMIT 8;`,
+      [ticker],
+    ),
+    sql.query<ShortPosition>(
+      `SELECT watch_ticker AS "watchTicker", company, issuer_name AS "issuerName", isin, holder,
+        net_short_pct::float8 AS "netShortPct", to_char(position_date,'YYYY-MM-DD') AS "positionDate",
+        to_char(modify_date,'YYYY-MM-DD') AS "modifyDate"
+       FROM short_positions WHERE watch_ticker = $1
+       ORDER BY position_date DESC NULLS LAST LIMIT 15;`,
+      [ticker],
+    ),
+    sql.query<HoldingNotification>(
+      `SELECT watch_ticker AS "watchTicker", company, holder, direction, thresholds AS "thresholds",
+        pct_after::float8 AS "pctAfter", title, url,
+        to_char(published_at,'YYYY-MM-DD"T"HH24:MI') AS "publishedAt"
+       FROM significant_holdings WHERE watch_ticker = $1
+       ORDER BY published_at DESC NULLS LAST LIMIT 6;`,
+      [ticker],
+    ),
+    sql.query<Dividend>(
+      `SELECT watch_ticker AS "watchTicker", company, slug, dividend_type AS "dividendType",
+        to_char(record_date,'YYYY-MM-DD') AS "recordDate", to_char(payment_date,'YYYY-MM-DD') AS "paymentDate",
+        amount::float8 AS "amount", currency, yield_pct::float8 AS "yieldPct", status, year
+       FROM dividends WHERE watch_ticker = $1
+       ORDER BY record_date DESC NULLS LAST LIMIT 6;`,
+      [ticker],
+    ),
+  ]);
+  return {
+    financials,
+    recommendations: recs.rows,
+    insider: insider.rows,
+    shorts: shorts.rows,
+    holdings: holdings.rows,
+    dividends: dividends.rows,
+  };
+}
+
+/** Zapisuje wygenerowane perspektywy spolki. */
+export async function insertOutlook(
+  ticker: string,
+  outlook: CompanyOutlook,
+  model: string,
+): Promise<void> {
+  await sql`
+    INSERT INTO company_outlook (ticker, outlook, model)
+    VALUES (${ticker}, ${JSON.stringify(outlook)}::jsonb, ${model});
+  `;
+}
+
+/** Najnowsze perspektywy danej spolki (albo null). */
+export async function getOutlook(ticker: string): Promise<CompanyOutlook | null> {
+  const { rows } = await sql<{ outlook: CompanyOutlook; model: string; createdAt: string }>`
+    SELECT outlook, model, to_char(created_at, 'YYYY-MM-DD"T"HH24:MI') AS "createdAt"
+    FROM company_outlook WHERE ticker = ${ticker}
+    ORDER BY created_at DESC LIMIT 1;
+  `;
+  if (rows.length === 0) return null;
+  return { ...rows[0].outlook, model: rows[0].model, createdAt: rows[0].createdAt };
+}
+
+/** Najnowsze perspektywy dla kazdej spolki (mapa ticker -> outlook). */
+export async function getLatestOutlooks(): Promise<Record<string, CompanyOutlook>> {
+  const { rows } = await sql<{ ticker: string; outlook: CompanyOutlook; model: string; createdAt: string }>`
+    SELECT DISTINCT ON (ticker) ticker, outlook, model,
+      to_char(created_at, 'YYYY-MM-DD"T"HH24:MI') AS "createdAt"
+    FROM company_outlook
+    ORDER BY ticker, created_at DESC;
+  `;
+  const map: Record<string, CompanyOutlook> = {};
+  for (const r of rows) map[r.ticker] = { ...r.outlook, model: r.model, createdAt: r.createdAt };
   return map;
 }

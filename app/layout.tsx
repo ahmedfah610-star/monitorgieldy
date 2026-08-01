@@ -40,6 +40,9 @@ export default function RootLayout({
               <Link href="/dividends" className="hover:text-neutral-100">
                 Dywidendy
               </Link>
+              <Link href="/outlook" className="hover:text-neutral-100">
+                Perspektywy
+              </Link>
               <Link href="/watchlist" className="hover:text-neutral-100">
                 Watchlista
               </Link>

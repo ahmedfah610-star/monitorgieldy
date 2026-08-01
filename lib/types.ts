@@ -155,6 +155,21 @@ export interface Dividend {
   year: number | null;
 }
 
+/**
+ * Perspektywy spolki (Faza 12) — analiza AI ugruntowana we wszystkich zebranych
+ * sygnalach (wyniki, rekomendacje, insiderzy, shorty, pakiety, dywidendy).
+ */
+export interface CompanyOutlook {
+  currentStrengths: string[];
+  futureOpportunities: string[];
+  futureThreats: string[];
+  summary: string;
+  /** Model uzyty do analizy. */
+  model?: string;
+  /** Kiedy wygenerowano (ISO). */
+  createdAt?: string;
+}
+
 /** Wnioski AI porownujace okresy dla spolki (Faza 5). */
 export interface Conclusion {
   period: string | null;
