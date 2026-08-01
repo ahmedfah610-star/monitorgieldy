@@ -170,6 +170,30 @@ export interface CompanyOutlook {
   createdAt?: string;
 }
 
+/**
+ * Skladowa rankingu atrakcyjnosci (Faza 13). score w [-1,1]: >0 pozytywna,
+ * <0 negatywna, null = brak danych dla tej spolki.
+ */
+export interface RankingComponent {
+  key: string;
+  label: string;
+  score: number | null;
+  weight: number;
+  detail: string;
+}
+
+/** Pozycja w wewnetrznym rankingu atrakcyjnosci spolki. */
+export interface RankingEntry {
+  ticker: string;
+  company: string;
+  market: Market;
+  /** Wynik laczny 0-100 (50 = neutralnie). */
+  score: number;
+  /** Udzial skladowych, ktore mialy dane (0-1). */
+  coverage: number;
+  components: RankingComponent[];
+}
+
 /** Wnioski AI porownujace okresy dla spolki (Faza 5). */
 export interface Conclusion {
   period: string | null;

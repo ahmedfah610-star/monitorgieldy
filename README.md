@@ -172,6 +172,19 @@ z dniem ustalenia prawa (record date) i dniem wypłaty.
   daty), wpis się aktualizuje. Odświeżanie: `/dividends` (POST `/api/dividends/refresh`) lub
   zbiorczo `/api/refresh-all`.
 
+## Ranking atrakcyjności (Faza 13)
+
+Strona `/ranking` to **wewnętrzny, deterministyczny ranking** spółek z watchlisty — wynik 0-100
+(50 = neutralnie) liczony ze wszystkich zebranych sygnałów. **Bez AI, zero tokenów**, liczony
+w locie przy każdym wejściu.
+
+- Składowe (waga): rekomendacje 25%, insiderzy 20%, wyniki r/r 20%, krótkie pozycje 18%, znaczne
+  pakiety 12%, dywidenda 5%. Każda liczona w `[-1,1]` (byczo↔niedźwiedzio); wagi
+  **renormalizowane** do składowych, które mają dane, więc brak danych nie ciągnie do neutralnego.
+- Zdarzeniowe sygnały (insiderzy, pakiety) liczone z okna ~180 dni. Shorty tylko obniżają wynik.
+- UI pokazuje **rozbicie na chipy** (dlaczego spółka jest wyżej) + flagę „skąpe dane" przy niskim
+  pokryciu. Logika w `lib/ranking.ts` (`scoreCompany` to czysta, testowalna funkcja).
+
 ## Perspektywy spółek (Faza 12)
 
 Strona `/outlook` to analiza AI **ugruntowana we wszystkich zebranych sygnałach** — dla każdej
@@ -208,6 +221,7 @@ app/
   holdings/page.tsx              # Znaczne pakiety akcji — art. 69 (Faza 9)
   dividends/page.tsx             # Dywidendy — historyczne i zapowiedziane (Faza 10)
   outlook/page.tsx               # Perspektywy — atuty/szanse/zagrożenia z AI (Faza 12)
+  ranking/page.tsx               # Ranking atrakcyjności — wynik z sygnałów (Faza 13)
   watchlist/page.tsx             # Edycja watchlisty (Faza 0)
   login/page.tsx                 # Ekran logowania (gdy gate włączony)
   api/
@@ -228,6 +242,7 @@ app/
     dividends/refresh/route.ts   # Dywidendy: pobranie z kalendarza bankier (ręcznie i cron)
     refresh-all/route.ts         # Zbiorcze odświeżanie wszystkich źródeł (jeden cron)
     outlook/route.ts             # Perspektywy: odczyt + generowanie (AI, cache)
+    ranking/route.ts             # Ranking atrakcyjności (liczony z sygnałów, bez AI)
     watchlist/route.ts           # CRUD watchlisty
     init-db/route.ts             # Tworzenie tabel
     login/route.ts               # Logowanie
@@ -238,6 +253,7 @@ lib/
   extract.ts                             # ekstrakcja liczb przez Claude (Faza 4)
   conclusions.ts                         # wnioski AI porównujące okresy (Faza 5)
   outlook.ts                             # perspektywy AI z zebranych sygnałów (Faza 12)
+  ranking.ts                             # ranking atrakcyjności — scoring z sygnałów (Faza 13)
   insider.ts                             # transakcje insiderów — art. 19 MAR z PDF (Faza 7)
   knf.ts                                 # krótkie pozycje netto — rejestr KNF (Faza 8)
   holdings.ts                            # znaczne pakiety akcji — art. 69 (Faza 9)

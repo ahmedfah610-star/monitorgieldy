@@ -22,6 +22,9 @@ export default function RootLayout({
               <Link href="/" className="hover:text-neutral-100">
                 Dashboard
               </Link>
+              <Link href="/ranking" className="hover:text-neutral-100">
+                Ranking
+              </Link>
               <Link href="/recommendations" className="hover:text-neutral-100">
                 Rekomendacje
               </Link>
