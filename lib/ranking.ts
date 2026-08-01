@@ -1,4 +1,5 @@
 import { hasDb, getWatchlist, getCompanySignals, getMacroScores, type CompanySignals } from "./db";
+import { fetchQuote, toYahooSymbol } from "./yahoo";
 import type { RankingComponent, RankingEntry, Market } from "./types";
 
 /**
@@ -27,19 +28,21 @@ const WINSOR = 2.5; // ograniczenie z-score
 const SPREAD = 0.9; // skala mapowania Φ (mniejsza => wiekszy rozrzut)
 
 const WEIGHTS: Record<string, number> = {
-  consensus: 0.23,
-  insider: 0.18,
-  short: 0.16,
-  financials: 0.18,
-  holdings: 0.1,
-  macro: 0.1,
-  dividend: 0.05,
+  consensus: 0.18, // wydzwiek rekomendacji (Kupuj/Trzymaj/Sprzedaj)
+  potential: 0.16, // potencjal: mediana ceny docelowej vs kurs biezacy
+  financials: 0.16, // trend wynikow r/r
+  insider: 0.15, // transakcje osob zarzadzajacych
+  short: 0.14, // krotkie pozycje (KNF)
+  holdings: 0.08, // znaczne pakiety (art. 69)
+  macro: 0.08, // koniunktura makro rynku
+  dividend: 0.05, // stopa dywidendy (prognoza z dyskontem)
 };
 const LABELS: Record<string, string> = {
   consensus: "Rekomendacje",
+  potential: "Potencjał",
+  financials: "Wyniki r/r",
   insider: "Insiderzy",
   short: "Krótkie pozycje",
-  financials: "Wyniki r/r",
   holdings: "Znaczne pakiety",
   macro: "Koniunktura",
   dividend: "Dywidenda",
@@ -88,7 +91,12 @@ interface Raw {
   detail: string;
 }
 
-function rawSignals(market: Market, s: CompanySignals, macroRaw: number | null): Record<string, Raw> {
+function rawSignals(
+  market: Market,
+  s: CompanySignals,
+  macroRaw: number | null,
+  price: number | null,
+): Record<string, Raw> {
   const out: Record<string, Raw> = {};
 
   // Rekomendacje: tilt sentymentu z tlumieniem malej proby.
@@ -99,6 +107,17 @@ function rawSignals(market: Market, s: CompanySignals, macroRaw: number | null):
     const rated = b + h + se || s.recommendations.length;
     out.consensus = { value: (b - se) / Math.max(rated, 4), detail: `Kupuj ${b}/Trzymaj ${h}/Sprzedaj ${se}` };
   } else out.consensus = { value: null, detail: "brak" };
+
+  // Potencjal: mediana ceny docelowej analitykow vs biezacy kurs (prognoza + cena).
+  const targets = s.recommendations.map((r) => r.priceTarget).filter((v): v is number => v !== null && v > 0);
+  if (price !== null && price > 0 && targets.length) {
+    const mt = median(targets);
+    const up = (mt - price) / price;
+    out.potential = {
+      value: up,
+      detail: `cel ${mt.toLocaleString("pl-PL", { maximumFractionDigits: 2 })} vs ${price.toLocaleString("pl-PL", { maximumFractionDigits: 2 })} · ${up >= 0 ? "+" : ""}${(up * 100).toFixed(0)}%`,
+    };
+  } else out.potential = { value: null, detail: price === null ? "brak kursu" : "brak celu" };
 
   // Insiderzy: netto kupno-sprzedaz (wartosciowo, inaczej po liczbie).
   const ins = s.insider.filter((t) => recentEnough(t.txDate ?? t.publishedAt?.slice(0, 10) ?? null));
@@ -159,9 +178,18 @@ function rawSignals(market: Market, s: CompanySignals, macroRaw: number | null):
       ? { value: null, detail: "brak" }
       : { value: macroRaw, detail: `klimat ${market} ${Math.round((macroRaw + 1) * 50)}/100` };
 
-  // Dywidenda: stopa (tylko dodatnia informacja).
-  const dv = s.dividends.find((d) => d.yieldPct !== null && d.yieldPct > 0);
-  out.dividend = dv ? { value: dv.yieldPct as number, detail: `stopa ${(dv.yieldPct as number).toLocaleString("pl-PL")}%` } : { value: null, detail: "brak" };
+  // Dywidenda: stopa, z dyskontem dla prognozowanej (proponowana/projekt).
+  const withY = s.dividends.filter((d) => d.yieldPct !== null && d.yieldPct > 0);
+  if (withY.length) {
+    const confirmed = /uchwal|wyp[łl]ac/i;
+    const chosen = withY.find((d) => confirmed.test(d.status ?? "")) ?? withY[0];
+    const y = chosen.yieldPct as number;
+    const isForecast = !confirmed.test(chosen.status ?? "");
+    out.dividend = {
+      value: isForecast ? y * 0.6 : y, // niepewnosc prognozy => dyskonto
+      detail: `stopa ${y.toLocaleString("pl-PL")}%${isForecast ? " (prognoza)" : ""}`,
+    };
+  } else out.dividend = { value: null, detail: "brak" };
 
   return out;
 }
@@ -231,12 +259,15 @@ export async function computeRankings(): Promise<{ ranking: RankingEntry[]; usin
   const [watchlist, macroScores] = await Promise.all([getWatchlist(), getMacroScores()]);
   const items: RankItem[] = await Promise.all(
     watchlist.map(async (w) => {
-      const signals = await getCompanySignals(w.ticker);
+      const [signals, quote] = await Promise.all([
+        getCompanySignals(w.ticker),
+        fetchQuote(toYahooSymbol(w.ticker, w.market)).catch(() => null),
+      ]);
       return {
         company: w.name,
         ticker: w.ticker,
         market: w.market,
-        raw: rawSignals(w.market, signals, macroScores[w.market] ?? null),
+        raw: rawSignals(w.market, signals, macroScores[w.market] ?? null, quote?.close ?? null),
       };
     }),
   );
