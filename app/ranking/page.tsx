@@ -154,8 +154,10 @@ export default function RankingPage() {
 
       <p className="text-[10px] text-neutral-600">
         Wynik heurystyczny — narzędzie informacyjne, nie doradztwo inwestycyjne. Wagi: rekomendacje
-        25%, insiderzy 20%, wyniki r/r 20%, krótkie pozycje 18%, znaczne pakiety 12%, dywidenda 5%
-        (renormalizowane do dostępnych danych).
+        23%, insiderzy 18%, wyniki r/r 18%, krótkie pozycje 16%, koniunktura 10%, znaczne pakiety
+        10%, dywidenda 5%. Wynik jest <strong>ściągany ku 50 proporcjonalnie do pokrycia danymi</strong>
+        (mało sygnałów = mniejsze odchylenie), a rekomendacje mają tłumienie małej próby — żeby
+        skąpe dane nie dawały skrajnych, nieporównywalnych wyników.
       </p>
     </main>
   );

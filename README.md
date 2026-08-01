@@ -208,6 +208,11 @@ w locie przy każdym wejściu.
   pakiety 12%, dywidenda 5%. Każda liczona w `[-1,1]` (byczo↔niedźwiedzio); wagi
   **renormalizowane** do składowych, które mają dane, więc brak danych nie ciągnie do neutralnego.
 - Zdarzeniowe sygnały (insiderzy, pakiety) liczone z okna ~180 dni. Shorty tylko obniżają wynik.
+- **Shrinkage wg pewności:** wynik odchyla się od 50 tylko proporcjonalnie do **wagowego pokrycia
+  danymi** (`wynik = 50 + odchylenie × pewność`, `pewność = Σ wag dostępnych / Σ wszystkich wag`).
+  Dzięki temu spółka z 2-3 sygnałami nie dostaje skrajnego, nieporównywalnego wyniku (np.
+  Diagnostyka 89→59, PKO BP 87→64), a spółka z kompletem danych zostaje bez zmian. Rekomendacje
+  mają dodatkowo tłumienie małej próby (`/max(liczba, 4)`).
 - UI pokazuje **rozbicie na chipy** (dlaczego spółka jest wyżej) + flagę „skąpe dane" przy niskim
   pokryciu. Logika w `lib/ranking.ts` (`scoreCompany` to czysta, testowalna funkcja).
 

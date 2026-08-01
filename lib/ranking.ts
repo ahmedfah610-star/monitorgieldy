@@ -43,10 +43,11 @@ function consensusComp(recs: CompanySignals["recommendations"]): RankingComponen
   const hold = recs.filter((r) => r.sentiment === "neutral").length;
   const sell = recs.filter((r) => r.sentiment === "negative").length;
   const rated = buy + hold + sell || recs.length;
+  // Tlumienie malej proby: dzielimy przez min. 4, by 1-2 rekomendacje nie daly maksa.
   return {
     key: "consensus",
     label: "Rekomendacje",
-    score: clamp((buy - sell) / rated),
+    score: clamp((buy - sell) / Math.max(rated, 4)),
     weight: w,
     detail: `Kupuj ${buy} / Trzymaj ${hold} / Sprzedaj ${sell}`,
   };
@@ -200,14 +201,20 @@ export function scoreCompany(
     dividendComp(s.dividends),
   ];
   const active = components.filter((c) => c.score !== null);
-  const sumW = active.reduce((a, c) => a + c.weight, 0);
-  const raw = sumW > 0 ? active.reduce((a, c) => a + c.weight * (c.score as number), 0) / sumW : 0;
+  const sumActiveW = active.reduce((a, c) => a + c.weight, 0);
+  const sumAllW = components.reduce((a, c) => a + c.weight, 0);
+  // "Opinia" [-1,1] z dostepnych skladowych.
+  const opinion = sumActiveW > 0 ? active.reduce((a, c) => a + c.weight * (c.score as number), 0) / sumActiveW : 0;
+  // Pewnosc = jaka czesc modelu (wagowo) faktycznie mamy. Malo danych => wynik
+  // sciagany ku neutralnemu 50, zeby skapy sygnal nie dawal skrajnego wyniku.
+  const confidence = sumAllW > 0 ? sumActiveW / sumAllW : 0;
+  const shrunk = opinion * confidence;
   return {
     ticker,
     company,
     market,
-    score: Math.round((raw + 1) * 50),
-    coverage: active.length / components.length,
+    score: Math.round((shrunk + 1) * 50),
+    coverage: sumActiveW / sumAllW, // pokrycie wagowe (0-1)
     components,
   };
 }
