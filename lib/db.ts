@@ -866,3 +866,24 @@ export async function getMacroScores(): Promise<Record<string, number | null>> {
   for (const r of rows) map[r.market] = r.scoreRaw;
   return map;
 }
+
+// ---------- Raporty bez ekstrakcji (do wsadowej analizy AI) ----------
+
+export interface PendingReport {
+  url: string;
+  watchTicker: string | null;
+  company: string | null;
+  period: string | null;
+}
+
+/** Raporty watchlisty bez wyciagnietych liczb (extracted_json IS NULL). */
+export async function getUnextractedReports(limit = 8): Promise<PendingReport[]> {
+  const { rows } = await sql<PendingReport>`
+    SELECT url, watch_ticker AS "watchTicker", company, period
+    FROM reports
+    WHERE watch_ticker IS NOT NULL AND extracted_json IS NULL
+    ORDER BY published_at DESC NULLS LAST, created_at DESC
+    LIMIT ${limit};
+  `;
+  return rows;
+}

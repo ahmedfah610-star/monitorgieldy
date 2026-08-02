@@ -83,11 +83,20 @@ export default function RankingPage() {
       const res = await fetch("/api/refresh-all", { method: "POST" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
-      const ok: string[] = json.ok ?? [];
+      const c: Record<string, number> = json.counts ?? {};
+      const n = (k: string, name: string) => `${name} +${c[k] ?? 0}`;
+      const parts = [
+        n("recommendations", "rekomendacje"),
+        n("reports", "raporty"),
+        json.financials?.needsKey ? "wyniki r/r: wymaga klucza AI" : n("financials", "wyniki r/r"),
+        n("short", "shorty"),
+        n("holdings", "pakiety"),
+        n("insider", "insiderzy"),
+        n("dividends", "dywidendy"),
+      ];
       const failed = Object.keys(json.failed ?? {});
       setRefreshMsg(
-        `Pobrano nowe dane ze źródeł: ${ok.join(", ") || "—"}` +
-          (failed.length ? ` · problemy: ${failed.join(", ")}` : ""),
+        `Nowe wpisy — ${parts.join(" · ")}` + (failed.length ? ` · problemy: ${failed.join(", ")}` : ""),
       );
       await load();
     } catch (e) {

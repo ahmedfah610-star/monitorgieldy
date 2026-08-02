@@ -4,9 +4,41 @@ import {
   upsertReports,
   getWatchlistReports,
   getLatestConclusions,
+  getUnextractedReports,
+  updateReportExtraction,
 } from "./db";
 import { fetchCompanyReports } from "./espi";
+import { hasAnthropicKey, extractFromUrl } from "./extract";
 import type { Report, Conclusion } from "./types";
+
+/**
+ * Wsadowa ekstrakcja wynikow (Faza 4) — wyciaga liczby z raportow watchlisty,
+ * ktore jeszcze nie maja extracted_json. Uzywane w refresh-all, by "Odswiez dane"
+ * zasilalo tez "Wyniki r/r" (nie tylko liste raportow). Wymaga klucza Anthropic;
+ * dedup po extracted_json => kazdy raport analizowany raz. Limit chroni tokeny/czas.
+ */
+export async function extractPendingReports(
+  limit = 6,
+): Promise<{ extracted: number; failed: number; needsKey: boolean }> {
+  if (!hasAnthropicKey()) return { extracted: 0, failed: 0, needsKey: true };
+  const pending = await getUnextractedReports(limit);
+  let extracted = 0;
+  let failed = 0;
+  for (const r of pending) {
+    try {
+      const data = await extractFromUrl(r.url, {
+        company: r.company ?? r.watchTicker ?? "",
+        period: r.period ?? "",
+        ticker: r.watchTicker ?? "",
+      });
+      await updateReportExtraction(r.url, data);
+      extracted += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+  return { extracted, failed, needsKey: false };
+}
 
 export interface ReportsRefreshSummary {
   inserted: number;
