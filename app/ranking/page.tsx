@@ -55,6 +55,8 @@ function Bar({ score }: { score: number }) {
 export default function RankingPage() {
   const [view, setView] = useState<View | null>(null);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshMsg, setRefreshMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -70,6 +72,30 @@ export default function RankingPage() {
       setLoading(false);
     }
   }, []);
+
+  // Jednym klikiem pobiera WSZYSTKIE zrodla dla calej watchlisty (tylko nowe —
+  // dedup). Zastepuje reczne odswiezanie kazdej sekcji osobno.
+  const refreshData = useCallback(async () => {
+    setRefreshing(true);
+    setRefreshMsg(null);
+    setError(null);
+    try {
+      const res = await fetch("/api/refresh-all", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+      const ok: string[] = json.ok ?? [];
+      const failed = Object.keys(json.failed ?? {});
+      setRefreshMsg(
+        `Pobrano nowe dane ze źródeł: ${ok.join(", ") || "—"}` +
+          (failed.length ? ` · problemy: ${failed.join(", ")}` : ""),
+      );
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Nie udalo sie odswiezyc danych.");
+    } finally {
+      setRefreshing(false);
+    }
+  }, [load]);
 
   useEffect(() => {
     load();
@@ -88,14 +114,38 @@ export default function RankingPage() {
             Bez AI.
           </p>
         </div>
-        <button
-          onClick={load}
-          disabled={loading}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {loading ? "Liczę…" : "Przelicz"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={refreshData}
+            disabled={refreshing || loading}
+            title="Pobiera wszystkie źródła dla całej watchlisty naraz (tylko nowe wpisy)"
+            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {refreshing ? "Pobieram dane…" : "Odśwież dane"}
+          </button>
+          <button
+            onClick={load}
+            disabled={loading || refreshing}
+            title="Przelicza ranking na już zebranych danych (bez pobierania)"
+            className="rounded-md border border-neutral-700 px-3 py-2 text-sm text-neutral-300 transition hover:border-neutral-500 hover:text-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {loading ? "Liczę…" : "Przelicz"}
+          </button>
+        </div>
       </div>
+
+      {refreshing && (
+        <div className="rounded-md border border-blue-900/50 bg-blue-950/30 px-4 py-3 text-sm text-blue-200">
+          Pobieram nowe dane ze wszystkich źródeł (rekomendacje, raporty, shorty, pakiety, dywidendy,
+          insiderzy, makro) dla całej watchlisty — to może potrwać kilkadziesiąt sekund…
+        </div>
+      )}
+
+      {refreshMsg && !refreshing && (
+        <div className="rounded-md border border-neutral-800 bg-neutral-900/50 px-4 py-3 text-sm text-neutral-300">
+          {refreshMsg}
+        </div>
+      )}
 
       {view && !view.usingDb && (
         <div className="rounded-md border border-amber-900 bg-amber-950/40 px-4 py-3 text-sm text-amber-300">
@@ -114,8 +164,9 @@ export default function RankingPage() {
 
       {view && view.ranking.length === 0 && !loading && view.usingDb && (
         <p className="text-sm text-neutral-500">
-          Brak spółek albo danych. Dodaj spółki do watchlisty i odśwież źródła (rekomendacje,
-          raporty, shorty…), aby ranking miał sygnały.
+          Brak spółek albo danych. Dodaj spółki do watchlisty, a potem kliknij <strong>„Odśwież
+          dane"</strong> powyżej — jednym kliknięciem pobierze wszystkie źródła dla całej watchlisty
+          (kolejne odświeżenia dociągają tylko nowe wpisy).
         </p>
       )}
 
