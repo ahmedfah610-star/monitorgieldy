@@ -1,12 +1,12 @@
 import {
   hasDb,
-  getWatchlist,
   upsertReports,
   getWatchlistReports,
   getLatestConclusions,
   getUnextractedReports,
   updateReportExtraction,
 } from "./db";
+import { getUniverse, mapLimit } from "./universe";
 import { fetchCompanyReports } from "./espi";
 import { hasAnthropicKey, extractFromUrl } from "./extract";
 import type { Report, Conclusion } from "./types";
@@ -57,14 +57,12 @@ export async function refreshReports(): Promise<ReportsRefreshSummary> {
   const sources: Record<string, number> = {};
   const all: Report[] = [];
 
-  const watchlist = await getWatchlist();
+  const watchlist = await getUniverse();
   const plItems = watchlist.filter((w) => w.market === "PL" && w.bankierSymbol);
 
-  const results = await Promise.allSettled(
-    plItems.map((w) =>
-      fetchCompanyReports(w.bankierSymbol as string).then((reports) =>
-        reports.map((r) => ({ ...r, watchTicker: w.ticker, company: w.name })),
-      ),
+  const results = await mapLimit(plItems, 6, (w) =>
+    fetchCompanyReports(w.bankierSymbol as string).then((reports) =>
+      reports.map((r) => ({ ...r, watchTicker: w.ticker, company: w.name })),
     ),
   );
   results.forEach((res, i) => {

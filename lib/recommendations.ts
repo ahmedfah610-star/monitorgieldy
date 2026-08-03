@@ -1,10 +1,10 @@
 import {
   hasDb,
-  getWatchlist,
   upsertRecommendations,
   getWatchlistRecommendations,
   getMarketRecommendations,
 } from "./db";
+import { getUniverse, mapLimit } from "./universe";
 import { fetchCompanyRecommendations, fetchMarketRecommendations } from "./bankier";
 import { fetchFinnhubRecommendations, hasFinnhubKey } from "./finnhub";
 import type { Recommendation } from "./types";
@@ -27,15 +27,13 @@ export async function refreshRecommendations(): Promise<RefreshSummary> {
   const sources: Record<string, number> = {};
   const all: Recommendation[] = [];
 
-  const watchlist = await getWatchlist();
+  const watchlist = await getUniverse();
 
   // --- PL: bankier per-spolka (tylko te z ustawionym slugiem) ---
   const plItems = watchlist.filter((w) => w.market === "PL" && w.bankierSymbol);
-  const plResults = await Promise.allSettled(
-    plItems.map((w) =>
-      fetchCompanyRecommendations(w.bankierSymbol as string).then((recs) =>
-        recs.map((r) => ({ ...r, watchTicker: w.ticker })),
-      ),
+  const plResults = await mapLimit(plItems, 6, (w) =>
+    fetchCompanyRecommendations(w.bankierSymbol as string).then((recs) =>
+      recs.map((r) => ({ ...r, watchTicker: w.ticker })),
     ),
   );
   plResults.forEach((res, i) => {

@@ -1,4 +1,5 @@
-import { hasDb, getWatchlist, upsertShortPositions, getWatchlistShortPositions } from "./db";
+import { hasDb, upsertShortPositions, getWatchlistShortPositions } from "./db";
+import { getUniverse, mapLimit } from "./universe";
 import type { ShortPosition } from "./types";
 
 /**
@@ -87,15 +88,13 @@ export interface ShortRefreshSummary {
  */
 export async function refreshShortPositions(): Promise<ShortRefreshSummary> {
   const errors: string[] = [];
-  const watchlist = await getWatchlist();
+  const watchlist = await getUniverse();
   const plItems = watchlist.filter((w) => w.market === "PL" && w.bankierSymbol);
 
   const all: ShortPosition[] = [];
   let fetched = 0;
-  const results = await Promise.allSettled(
-    plItems.map((w) =>
-      fetchShortPositions(w.bankierSymbol as string).then((recs) => ({ w, recs })),
-    ),
+  const results = await mapLimit(plItems, 6, (w) =>
+    fetchShortPositions(w.bankierSymbol as string).then((recs) => ({ w, recs })),
   );
   for (const res of results) {
     if (res.status === "rejected") {

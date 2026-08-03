@@ -1,4 +1,5 @@
-import { hasDb, getWatchlist, getCompanySignals, getMacroSnapshots, type CompanySignals } from "./db";
+import { hasDb, getCompanySignals, getMacroSnapshots, type CompanySignals } from "./db";
+import { getUniverse, mapLimit } from "./universe";
 import { fetchQuote, toYahooSymbol } from "./yahoo";
 import { projectGrowth } from "./forecast";
 import { detectSector } from "./sectors";
@@ -289,7 +290,7 @@ export function buildRanking(items: RankItem[]): RankingEntry[] {
 /** Liczy ranking dla calej watchlisty. */
 export async function computeRankings(): Promise<{ ranking: RankingEntry[]; usingDb: boolean }> {
   if (!hasDb()) return { ranking: [], usingDb: false };
-  const [watchlist, macro] = await Promise.all([getWatchlist(), getMacroSnapshots()]);
+  const [universe, macro] = await Promise.all([getUniverse(), getMacroSnapshots()]);
   const macroRaw: Record<string, number | null> = { PL: macro.PL?.scoreRaw ?? null, US: macro.US?.scoreRaw ?? null };
   const gdpFrac = (m: Market): number | null => {
     const v = macro[m]?.indicators?.find((i) => i.key === "gdp")?.value;
@@ -297,20 +298,21 @@ export async function computeRankings(): Promise<{ ranking: RankingEntry[]; usin
   };
   const gdp: Record<string, number | null> = { PL: gdpFrac("PL"), US: gdpFrac("US") };
 
-  const items: RankItem[] = await Promise.all(
-    watchlist.map(async (w) => {
-      const [signals, quote] = await Promise.all([
-        getCompanySignals(w.ticker),
-        fetchQuote(toYahooSymbol(w.ticker, w.market)).catch(() => null),
-      ]);
-      const sector = detectSector(w.ticker, w.market, w.bankierSymbol ?? null);
-      return {
-        company: w.name,
-        ticker: w.ticker,
-        market: w.market,
-        raw: rawSignals(w.market, signals, macroRaw[w.market] ?? null, quote?.close ?? null, sector, gdp[w.market] ?? null),
-      };
-    }),
-  );
+  // Ograniczona wspolbieznosc — 57 spolek naraz zasypaloby Yahoo/baze. Kurs
+  // pobieramy TYLKO gdy jest cena docelowa (bez niej potencjal i tak = null),
+  // co oszczedza wiekszosc zapytan do Yahoo przy pelnym katalogu.
+  const settled = await mapLimit(universe, 8, async (w) => {
+    const signals = await getCompanySignals(w.ticker);
+    const hasTarget = signals.recommendations.some((r) => r.priceTarget !== null && r.priceTarget > 0);
+    const quote = hasTarget ? await fetchQuote(toYahooSymbol(w.ticker, w.market)).catch(() => null) : null;
+    const sector = detectSector(w.ticker, w.market, w.bankierSymbol ?? null);
+    return {
+      company: w.name,
+      ticker: w.ticker,
+      market: w.market,
+      raw: rawSignals(w.market, signals, macroRaw[w.market] ?? null, quote?.close ?? null, sector, gdp[w.market] ?? null),
+    } as RankItem;
+  });
+  const items: RankItem[] = settled.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
   return { ranking: buildRanking(items), usingDb: true };
 }

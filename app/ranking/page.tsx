@@ -137,11 +137,11 @@ export default function RankingPage() {
         <div>
           <h1 className="text-2xl font-semibold">Ranking atrakcyjności</h1>
           <p className="max-w-2xl text-xs text-neutral-500">
-            Złożony wskaźnik 0-100 (50 = mediana rynku) liczony ze wszystkich zebranych sygnałów.
-            Każdy sygnał jest standaryzowany <strong>względem grupy porównawczej</strong> (odporny
-            z-score na medianie/MAD, winsoryzacja), agregowany wagowo i mapowany przez dystrybuantę
-            normalną. Chip pokazuje odchylenie w <strong>σ</strong> od mediany (▲ powyżej, ▼ poniżej).
-            Bez AI.
+            Obejmuje <strong>automatycznie cały katalog GPW (WIG20 + mWIG40)</strong> plus Twoją
+            watchlistę — nic nie trzeba dodawać. Złożony wskaźnik 0-100 (50 = mediana rynku): każdy
+            sygnał standaryzowany <strong>względem grupy porównawczej</strong> (odporny z-score,
+            winsoryzacja), agregowany wagowo i mapowany przez dystrybuantę normalną. Chip pokazuje
+            odchylenie w <strong>σ</strong> od mediany. Kliknij „Odśwież dane", aby dociągnąć sygnały.
           </p>
         </div>
         <div className="flex items-center gap-2">

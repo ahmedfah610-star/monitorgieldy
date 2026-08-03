@@ -1,11 +1,11 @@
 import { extractText, getDocumentProxy } from "unpdf";
 import {
   hasDb,
-  getWatchlist,
   upsertHoldingNotifications,
   getExistingHoldingUrls,
   getWatchlistHoldings,
 } from "./db";
+import { getUniverse, mapLimit } from "./universe";
 import type { HoldingNotification } from "./types";
 
 /**
@@ -220,14 +220,12 @@ export interface HoldingRefreshSummary {
 
 export async function refreshHoldingNotifications(): Promise<HoldingRefreshSummary> {
   const errors: string[] = [];
-  const watchlist = await getWatchlist();
+  const watchlist = await getUniverse();
   const plItems = watchlist.filter((w) => w.market === "PL" && w.bankierSymbol);
 
-  const lists = await Promise.allSettled(
-    plItems.map((w) =>
-      fetchCompanyHoldingList(w.bankierSymbol as string).then((items) =>
-        items.map((it) => ({ item: it, watchTicker: w.ticker, company: w.name })),
-      ),
+  const lists = await mapLimit(plItems, 6, (w) =>
+    fetchCompanyHoldingList(w.bankierSymbol as string).then((items) =>
+      items.map((it) => ({ item: it, watchTicker: w.ticker, company: w.name })),
     ),
   );
   const found: { item: AnnouncementItem; watchTicker: string; company: string }[] = [];
@@ -242,8 +240,8 @@ export async function refreshHoldingNotifications(): Promise<HoldingRefreshSumma
   const pending = fresh.length - toProcess.length;
 
   const all: HoldingNotification[] = [];
-  const resolved = await Promise.allSettled(
-    toProcess.map((f) => resolveHolding(f.item, { watchTicker: f.watchTicker, company: f.company })),
+  const resolved = await mapLimit(toProcess, 5, (f) =>
+    resolveHolding(f.item, { watchTicker: f.watchTicker, company: f.company }),
   );
   resolved.forEach((res, i) => {
     if (res.status === "fulfilled") all.push(res.value);

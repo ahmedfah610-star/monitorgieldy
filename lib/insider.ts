@@ -1,11 +1,11 @@
 import { extractText, getDocumentProxy } from "unpdf";
 import {
   hasDb,
-  getWatchlist,
   upsertInsiderTransactions,
   getExistingInsiderUrls,
   getWatchlistInsiderTransactions,
 } from "./db";
+import { getUniverse, mapLimit } from "./universe";
 import type { InsiderTransaction } from "./types";
 
 /**
@@ -263,15 +263,13 @@ export interface InsiderRefreshSummary {
  */
 export async function refreshInsiderTransactions(): Promise<InsiderRefreshSummary> {
   const errors: string[] = [];
-  const watchlist = await getWatchlist();
+  const watchlist = await getUniverse();
   const plItems = watchlist.filter((w) => w.market === "PL" && w.bankierSymbol);
 
   // 1) Zbierz liste powiadomien MAR dla kazdej spolki.
-  const lists = await Promise.allSettled(
-    plItems.map((w) =>
-      fetchCompanyInsiderList(w.bankierSymbol as string).then((items) =>
-        items.map((it) => ({ item: it, watchTicker: w.ticker, company: w.name })),
-      ),
+  const lists = await mapLimit(plItems, 6, (w) =>
+    fetchCompanyInsiderList(w.bankierSymbol as string).then((items) =>
+      items.map((it) => ({ item: it, watchTicker: w.ticker, company: w.name })),
     ),
   );
   const found: { item: AnnouncementItem; watchTicker: string; company: string }[] = [];
@@ -288,10 +286,8 @@ export async function refreshInsiderTransactions(): Promise<InsiderRefreshSummar
 
   // 3) Doczytaj formularze i zbierz wiersze transakcji.
   const all: InsiderTransaction[] = [];
-  const resolved = await Promise.allSettled(
-    toProcess.map((f) =>
-      resolveAnnouncement(f.item, { watchTicker: f.watchTicker, company: f.company }),
-    ),
+  const resolved = await mapLimit(toProcess, 5, (f) =>
+    resolveAnnouncement(f.item, { watchTicker: f.watchTicker, company: f.company }),
   );
   resolved.forEach((res, i) => {
     if (res.status === "fulfilled") all.push(...res.value);

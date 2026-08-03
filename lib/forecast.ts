@@ -1,4 +1,5 @@
-import { hasDb, getWatchlist, getExtractedReports, getMacroSnapshots } from "./db";
+import { hasDb, getExtractedReports, getMacroSnapshots } from "./db";
+import { getUniverse } from "./universe";
 import { detectSector } from "./sectors";
 import type { Market } from "./types";
 
@@ -88,7 +89,7 @@ export function projectGrowth(
 
 export async function getForecastView(): Promise<{ forecasts: CompanyForecast[]; usingDb: boolean }> {
   if (!hasDb()) return { forecasts: [], usingDb: false };
-  const [watchlist, macro] = await Promise.all([getWatchlist(), getMacroSnapshots()]);
+  const [watchlist, macro] = await Promise.all([getUniverse(), getMacroSnapshots()]);
   const gdp: Record<string, number | null> = {
     PL: gdpFraction(macro.PL?.indicators),
     US: gdpFraction(macro.US?.indicators),

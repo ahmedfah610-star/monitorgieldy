@@ -1,4 +1,5 @@
-import { hasDb, getWatchlist, upsertDividends, getWatchlistDividends } from "./db";
+import { hasDb, upsertDividends, getWatchlistDividends } from "./db";
+import { getUniverse } from "./universe";
 import type { Dividend } from "./types";
 
 /**
@@ -100,7 +101,7 @@ export interface DividendRefreshSummary {
 
 export async function refreshDividends(): Promise<DividendRefreshSummary> {
   const errors: string[] = [];
-  const watchlist = await getWatchlist();
+  const watchlist = await getUniverse();
   const slugMap = new Map<string, { ticker: string; name: string }>();
   for (const w of watchlist) {
     if (w.market === "PL" && w.bankierSymbol) {
