@@ -48,20 +48,28 @@ export async function fetchShortPositions(issuerSymbol: string): Promise<KnfReco
     searchLogic: "AND",
     searchValue: "",
   });
-  const res = await fetch(ENDPOINT, {
-    method: "POST",
-    cache: "no-store",
-    headers: {
-      "User-Agent": UA,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: `request=${encodeURIComponent(request)}`,
-    signal: AbortSignal.timeout(20_000),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status} (KNF)`);
-  const json = (await res.json()) as { status?: string; records?: KnfRecord[] };
-  if (json.status !== "success") throw new Error(`KNF status: ${json.status}`);
-  return json.records ?? [];
+  // KNF potrafi chwilowo zwrocic blad/nie-JSON — ponawiamy raz.
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(ENDPOINT, {
+        method: "POST",
+        cache: "no-store",
+        headers: { "User-Agent": UA, "Content-Type": "application/x-www-form-urlencoded" },
+        body: `request=${encodeURIComponent(request)}`,
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status} (KNF)`);
+      const text = await res.text();
+      const json = JSON.parse(text) as { status?: string; records?: KnfRecord[] };
+      if (json.status !== "success") throw new Error(`KNF status: ${json.status}`);
+      return json.records ?? [];
+    } catch (e) {
+      lastErr = e;
+      await new Promise((r) => setTimeout(r, 800));
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("KNF fetch failed");
 }
 
 export interface ShortRefreshSummary {

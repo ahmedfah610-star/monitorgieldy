@@ -654,6 +654,7 @@ export async function getWatchlistDividends(limit = 200): Promise<Dividend[]> {
 export interface ExtractedReportRow {
   period: string | null;
   company: string | null;
+  reportType: string | null;
   extractedJson: ExtractedFinancials;
 }
 
@@ -663,7 +664,7 @@ export async function getExtractedReports(
   limit = 4,
 ): Promise<ExtractedReportRow[]> {
   const { rows } = await sql.query<ExtractedReportRow>(
-    `SELECT period, company, extracted_json AS "extractedJson"
+    `SELECT period, company, report_type AS "reportType", extracted_json AS "extractedJson"
      FROM reports
      WHERE watch_ticker = $1 AND extracted_json IS NOT NULL
      ORDER BY published_at DESC NULLS LAST, created_at DESC

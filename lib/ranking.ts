@@ -155,21 +155,38 @@ function rawSignals(
     out.short = { value: -total, detail: `łącznie ${total.toLocaleString("pl-PL", { maximumFractionDigits: 2 })}%` };
   } else out.short = { value: null, detail: "brak" };
 
-  // Wyniki r/r: srednia dynamika przychodow i zysku netto.
+  // Wyniki: laczy dynamike ROK DO ROKU (z pola porownawczego raportu) i KWARTAL
+  // DO KWARTALU (z dwoch kolejnych raportow kwartalnych). Kazda daje punkty,
+  // r/r wazone mocniej (stabilniejsze), k/k lzej (sezonowosc).
+  const g = (c: number | null, p: number | null) => (c === null || p === null || p === 0 ? null : (c - p) / Math.abs(p));
   if (s.financials.length) {
     const f = s.financials[0].extractedJson;
-    const g = (c: number | null, p: number | null) => (c === null || p === null || p === 0 ? null : (c - p) / Math.abs(p));
-    const rev = g(f.revenue, f.revenuePrior);
-    const net = g(f.netProfit, f.netProfitPrior);
-    revGrowth = rev;
-    const gr: number[] = [];
+    // Rok do roku — z samego raportu (biezacy vs analogiczny okres rok wczesniej).
+    const revYoY = g(f.revenue, f.revenuePrior);
+    const netYoY = g(f.netProfit, f.netProfitPrior);
+    revGrowth = revYoY;
+    const yoy: number[] = [];
+    if (revYoY !== null) yoy.push(revYoY);
+    if (netYoY !== null) yoy.push(netYoY);
+
+    // Kwartal do kwartalu — dwa kolejne raporty KWARTALNE.
+    const q = s.financials.filter((r) => r.reportType === "kwartalny").map((r) => r.extractedJson);
+    const revQoQ = q.length >= 2 ? g(q[0].revenue, q[1].revenue) : null;
+    const netQoQ = q.length >= 2 ? g(q[0].netProfit, q[1].netProfit) : null;
+    const qoq: number[] = [];
+    if (revQoQ !== null) qoq.push(revQoQ);
+    if (netQoQ !== null) qoq.push(netQoQ);
+
+    const yoyAvg = yoy.length ? yoy.reduce((a, b) => a + b, 0) / yoy.length : null;
+    const qoqAvg = qoq.length ? qoq.reduce((a, b) => a + b, 0) / qoq.length : null;
+    let value: number | null = null;
+    if (yoyAvg !== null && qoqAvg !== null) value = 0.65 * yoyAvg + 0.35 * qoqAvg;
+    else value = yoyAvg ?? qoqAvg;
+
     const parts: string[] = [];
-    if (rev !== null) { gr.push(rev); parts.push(`przych. ${rev >= 0 ? "+" : ""}${(rev * 100).toFixed(0)}%`); }
-    if (net !== null) { gr.push(net); parts.push(`zysk ${net >= 0 ? "+" : ""}${(net * 100).toFixed(0)}%`); }
-    out.financials = {
-      value: gr.length ? gr.reduce((a, b) => a + b, 0) / gr.length : null,
-      detail: parts.length ? parts.join(", ") : "brak porównania",
-    };
+    if (yoyAvg !== null) parts.push(`r/r ${yoyAvg >= 0 ? "+" : ""}${(yoyAvg * 100).toFixed(0)}%`);
+    if (qoqAvg !== null) parts.push(`k/k ${qoqAvg >= 0 ? "+" : ""}${(qoqAvg * 100).toFixed(0)}%`);
+    out.financials = { value, detail: parts.length ? parts.join(" · ") : "brak porównania" };
   } else out.financials = { value: null, detail: "brak" };
 
   // Znaczne pakiety: netto wejscia-wyjscia.
