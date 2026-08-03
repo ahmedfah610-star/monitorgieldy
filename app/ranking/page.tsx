@@ -52,11 +52,30 @@ function Bar({ score }: { score: number }) {
   );
 }
 
+// Kazde zrodlo odswiezamy OSOBNYM requestem — na Vercel Hobby (60s/funkcja)
+// wolne insider/pakiety (PDF-y) dostaja wtedy wlasny budzet czasu i sie konczą.
+const STEPS: { key: string; label: string; url: string }[] = [
+  { key: "recommendations", label: "Rekomendacje", url: "/api/recommendations/refresh" },
+  { key: "reports", label: "Raporty", url: "/api/reports/refresh" },
+  { key: "short", label: "Krótkie pozycje", url: "/api/short/refresh" },
+  { key: "dividends", label: "Dywidendy", url: "/api/dividends/refresh" },
+  { key: "holdings", label: "Znaczne pakiety", url: "/api/holdings/refresh" },
+  { key: "insider", label: "Insiderzy", url: "/api/insider/refresh" },
+  { key: "financials", label: "Wyniki r/r (AI)", url: "/api/reports/extract-pending" },
+  { key: "macro", label: "Koniunktura", url: "/api/macro" },
+];
+
+interface StepState {
+  label: string;
+  status: "pending" | "running" | "ok" | "err";
+  detail: string;
+}
+
 export default function RankingPage() {
   const [view, setView] = useState<View | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [refreshMsg, setRefreshMsg] = useState<string | null>(null);
+  const [progress, setProgress] = useState<StepState[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -73,37 +92,39 @@ export default function RankingPage() {
     }
   }, []);
 
-  // Jednym klikiem pobiera WSZYSTKIE zrodla dla calej watchlisty (tylko nowe —
-  // dedup). Zastepuje reczne odswiezanie kazdej sekcji osobno.
+  // Sekwencyjnie odswieza wszystkie zrodla dla calej watchlisty (tylko nowe — dedup).
   const refreshData = useCallback(async () => {
     setRefreshing(true);
-    setRefreshMsg(null);
     setError(null);
-    try {
-      const res = await fetch("/api/refresh-all", { method: "POST" });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
-      const c: Record<string, number> = json.counts ?? {};
-      const n = (k: string, name: string) => `${name} +${c[k] ?? 0}`;
-      const parts = [
-        n("recommendations", "rekomendacje"),
-        n("reports", "raporty"),
-        json.financials?.needsKey ? "wyniki r/r: wymaga klucza AI" : n("financials", "wyniki r/r"),
-        n("short", "shorty"),
-        n("holdings", "pakiety"),
-        n("insider", "insiderzy"),
-        n("dividends", "dywidendy"),
-      ];
-      const failed = Object.keys(json.failed ?? {});
-      setRefreshMsg(
-        `Nowe wpisy — ${parts.join(" · ")}` + (failed.length ? ` · problemy: ${failed.join(", ")}` : ""),
-      );
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Nie udalo sie odswiezyc danych.");
-    } finally {
-      setRefreshing(false);
+    setProgress(STEPS.map((s) => ({ label: s.label, status: "pending", detail: "" })));
+
+    for (let i = 0; i < STEPS.length; i++) {
+      const s = STEPS[i];
+      setProgress((p) => p.map((x, j) => (j === i ? { ...x, status: "running" } : x)));
+      try {
+        const res = await fetch(s.url, { method: "POST" });
+        const json = await res.json().catch(() => ({}));
+        let detail = "";
+        let status: StepState["status"] = "ok";
+        if (!res.ok) {
+          status = "err";
+          detail = json.error ? String(json.error).slice(0, 60) : `HTTP ${res.status}`;
+        } else if (s.key === "financials") {
+          detail = json.needsKey ? "wymaga klucza AI" : `+${json.extracted ?? 0}`;
+        } else if (s.key === "macro") {
+          detail = "✓";
+        } else {
+          detail = `+${json.inserted ?? 0}`;
+        }
+        setProgress((p) => p.map((x, j) => (j === i ? { ...x, status, detail } : x)));
+      } catch (e) {
+        setProgress((p) =>
+          p.map((x, j) => (j === i ? { ...x, status: "err", detail: e instanceof Error ? e.message.slice(0, 60) : "błąd" } : x)),
+        );
+      }
     }
+    await load();
+    setRefreshing(false);
   }, [load]);
 
   useEffect(() => {
@@ -143,16 +164,31 @@ export default function RankingPage() {
         </div>
       </div>
 
-      {refreshing && (
-        <div className="rounded-md border border-blue-900/50 bg-blue-950/30 px-4 py-3 text-sm text-blue-200">
-          Pobieram nowe dane ze wszystkich źródeł (rekomendacje, raporty, shorty, pakiety, dywidendy,
-          insiderzy, makro) dla całej watchlisty — to może potrwać kilkadziesiąt sekund…
-        </div>
-      )}
-
-      {refreshMsg && !refreshing && (
-        <div className="rounded-md border border-neutral-800 bg-neutral-900/50 px-4 py-3 text-sm text-neutral-300">
-          {refreshMsg}
+      {progress.length > 0 && (
+        <div className="rounded-md border border-neutral-800 bg-neutral-900/50 px-4 py-3">
+          <p className="mb-2 text-xs text-neutral-400">
+            {refreshing
+              ? "Pobieram dane ze źródeł (każde osobno, by nie ucięło na limicie czasu)…"
+              : "Odświeżanie zakończone. Liczby to nowe wpisy; +0 oznacza brak nowych zgłoszeń (nie błąd)."}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {progress.map((s) => {
+              const cls =
+                s.status === "ok"
+                  ? "border-emerald-900 bg-emerald-950/40 text-emerald-300"
+                  : s.status === "err"
+                    ? "border-red-900 bg-red-950/40 text-red-300"
+                    : s.status === "running"
+                      ? "border-blue-800 bg-blue-950/40 text-blue-300"
+                      : "border-neutral-800 text-neutral-600";
+              const icon = s.status === "ok" ? "✓" : s.status === "err" ? "✕" : s.status === "running" ? "…" : "·";
+              return (
+                <span key={s.label} className={`rounded border px-2 py-0.5 text-xs ${cls}`} title={s.detail}>
+                  {icon} {s.label} {s.detail && s.status !== "running" ? <span className="text-neutral-400">{s.detail}</span> : null}
+                </span>
+              );
+            })}
+          </div>
         </div>
       )}
 
