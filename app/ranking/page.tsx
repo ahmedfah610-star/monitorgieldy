@@ -92,29 +92,48 @@ export default function RankingPage() {
     }
   }, []);
 
-  // Sekwencyjnie odswieza wszystkie zrodla dla calej watchlisty (tylko nowe — dedup).
+  // Sekwencyjnie odswieza wszystkie zrodla dla calego katalogu (tylko nowe —
+  // dedup). Zrodla z limitem na przebieg (insider/pakiety/wyniki) sa ZAPETLANE
+  // az wyczerpia sie nowe wpisy — jedno klikniecie laduje komplet.
   const refreshData = useCallback(async () => {
     setRefreshing(true);
     setError(null);
     setProgress(STEPS.map((s) => ({ label: s.label, status: "pending", detail: "" })));
+    // ile razy max ponawiac dane zrodlo w jednym klikniecu (bounduje czas).
+    const MAX_LOOPS: Record<string, number> = { insider: 8, holdings: 8, financials: 10 };
 
     for (let i = 0; i < STEPS.length; i++) {
       const s = STEPS[i];
-      setProgress((p) => p.map((x, j) => (j === i ? { ...x, status: "running" } : x)));
+      setProgress((p) => p.map((x, j) => (j === i ? { ...x, status: "running", detail: "" } : x)));
+      let total = 0;
+      let loops = 0;
+      let status: StepState["status"] = "ok";
+      let detail = "";
       try {
-        const res = await fetch(s.url, { method: "POST" });
-        const json = await res.json().catch(() => ({}));
-        let detail = "";
-        let status: StepState["status"] = "ok";
-        if (!res.ok) {
-          status = "err";
-          detail = json.error ? String(json.error).slice(0, 60) : `HTTP ${res.status}`;
-        } else if (s.key === "financials") {
-          detail = json.needsKey ? "wymaga klucza AI" : `+${json.extracted ?? 0}`;
-        } else if (s.key === "macro") {
-          detail = "✓";
-        } else {
-          detail = `+${json.inserted ?? 0}`;
+        const maxLoops = MAX_LOOPS[s.key] ?? 1;
+        for (;;) {
+          const res = await fetch(s.url, { method: "POST" });
+          const json = await res.json().catch(() => ({}));
+          loops += 1;
+          if (!res.ok) {
+            status = "err";
+            detail = json.error ? String(json.error).slice(0, 60) : `HTTP ${res.status}`;
+            break;
+          }
+          if (s.key === "financials") {
+            if (json.needsKey) { detail = "wymaga klucza AI"; break; }
+            total += json.extracted ?? 0;
+            setProgress((p) => p.map((x, j) => (j === i ? { ...x, detail: `+${total}…` } : x)));
+            if ((json.extracted ?? 0) < 6 || loops >= maxLoops) { detail = `+${total}`; break; }
+          } else if (s.key === "macro") {
+            detail = "✓";
+            break;
+          } else {
+            total += json.inserted ?? 0;
+            const pending = json.pending ?? 0;
+            setProgress((p) => p.map((x, j) => (j === i ? { ...x, detail: `+${total}${pending ? "…" : ""}` } : x)));
+            if (pending <= 0 || loops >= maxLoops) { detail = `+${total}`; break; }
+          }
         }
         setProgress((p) => p.map((x, j) => (j === i ? { ...x, status, detail } : x)));
       } catch (e) {
