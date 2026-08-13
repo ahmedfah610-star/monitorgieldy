@@ -31,23 +31,25 @@ const WINSOR = 2.5; // ograniczenie z-score
 const SPREAD = 0.9; // skala mapowania Φ (mniejsza => wiekszy rozrzut)
 
 const WEIGHTS: Record<string, number> = {
-  consensus: 0.18, // wydzwiek rekomendacji (Kupuj/Trzymaj/Sprzedaj)
-  potential: 0.16, // potencjal: mediana ceny docelowej vs kurs biezacy
-  forecast: 0.12, // prognozowana dynamika przychodow (firma+branza+makro)
-  insider: 0.14, // transakcje osob zarzadzajacych
-  short: 0.13, // krotkie pozycje (KNF)
-  financials: 0.1, // realne wyniki r/r (jakosc ostatniego wykonania)
-  holdings: 0.07, // znaczne pakiety (art. 69)
-  macro: 0.06, // koniunktura makro rynku (nizsza, bo czesc jest juz w prognozie)
+  momentum: 0.16, // sila wzgledna kursu (1M/3M) — jedyny sygnal ruszajacy sie codziennie
+  consensus: 0.14, // wydzwiek rekomendacji (Kupuj/Trzymaj/Sprzedaj)
+  potential: 0.12, // potencjal: mediana ceny docelowej vs kurs biezacy (stlumiony)
+  insider: 0.12, // transakcje osob zarzadzajacych
+  short: 0.12, // krotkie pozycje (KNF)
+  financials: 0.1, // realne wyniki r/r + k/k (jakosc ostatniego wykonania)
+  forecast: 0.1, // prognozowana dynamika przychodow (firma+branza+makro)
+  holdings: 0.06, // znaczne pakiety (art. 69)
+  macro: 0.04, // koniunktura makro rynku (nizsza, bo czesc jest juz w prognozie)
   dividend: 0.04, // stopa dywidendy (prognoza z dyskontem)
 };
 const LABELS: Record<string, string> = {
+  momentum: "Momentum",
   consensus: "Rekomendacje",
   potential: "Potencjał",
-  forecast: "Prognoza wzrostu",
   insider: "Insiderzy",
   short: "Krótkie pozycje",
   financials: "Wyniki r/r",
+  forecast: "Prognoza wzrostu",
   holdings: "Znaczne pakiety",
   macro: "Koniunktura",
   dividend: "Dywidenda",
@@ -103,9 +105,24 @@ function rawSignals(
   price: number | null,
   sector: string,
   gdp: number | null,
+  mom: { r1m: number | null; r3m: number | null },
 ): Record<string, Raw> {
   const out: Record<string, Raw> = {};
   let revGrowth: number | null = null; // dynamika przychodow firmy — do prognozy
+
+  // Momentum: sila wzgledna kursu = blend zwrotu 1M i 3M (realne notowania, zmienia
+  // sie codziennie). Wyzej = lepiej. Wymaga chociaz jednego okna historii.
+  {
+    const parts: number[] = [];
+    const lbl: string[] = [];
+    if (mom.r1m !== null) { parts.push(0.5 * mom.r1m); lbl.push(`1M ${mom.r1m >= 0 ? "+" : ""}${(mom.r1m * 100).toFixed(0)}%`); }
+    if (mom.r3m !== null) { parts.push(0.5 * mom.r3m); lbl.push(`3M ${mom.r3m >= 0 ? "+" : ""}${(mom.r3m * 100).toFixed(0)}%`); }
+    // Gdy jest tylko jedno okno, przeskaluj, by nie zaniżać sygnału o brakującą połowę.
+    const value = parts.length
+      ? (parts.reduce((a, b) => a + b, 0) * (parts.length === 1 ? 2 : 1))
+      : null;
+    out.momentum = value === null ? { value: null, detail: "brak historii" } : { value, detail: lbl.join(" · ") };
+  }
 
   // Rekomendacje: tilt sentymentu z tlumieniem malej proby.
   if (s.recommendations.length) {
@@ -117,13 +134,18 @@ function rawSignals(
   } else out.consensus = { value: null, detail: "brak" };
 
   // Potencjal: mediana ceny docelowej analitykow vs biezacy kurs (prognoza + cena).
+  // Tlumienie pulapki wartosci: pojedynczy stary/wysrubowany cel dawal absurdalne
+  // "+100%" i przyklejal nieplynne spolki do gory. Dlatego (a) surowy potencjal
+  // przycinamy do +-60%, (b) przy tylko JEDNYM celu skalujemy sygnal o 0.5
+  // (mniejsza wiarygodnosc konsensusu z jednej opinii).
   const targets = s.recommendations.map((r) => r.priceTarget).filter((v): v is number => v !== null && v > 0);
   if (price !== null && price > 0 && targets.length) {
     const mt = median(targets);
-    const up = (mt - price) / price;
+    const upRaw = (mt - price) / price;
+    const up = clamp(upRaw, -0.6, 0.6) * (targets.length === 1 ? 0.5 : 1);
     out.potential = {
       value: up,
-      detail: `cel ${mt.toLocaleString("pl-PL", { maximumFractionDigits: 2 })} vs ${price.toLocaleString("pl-PL", { maximumFractionDigits: 2 })} · ${up >= 0 ? "+" : ""}${(up * 100).toFixed(0)}%`,
+      detail: `cel ${mt.toLocaleString("pl-PL", { maximumFractionDigits: 2 })} vs ${price.toLocaleString("pl-PL", { maximumFractionDigits: 2 })} · ${upRaw >= 0 ? "+" : ""}${(upRaw * 100).toFixed(0)}%${targets.length === 1 ? " (1 cel)" : ""}`,
     };
   } else out.potential = { value: null, detail: price === null ? "brak kursu" : "brak celu" };
 
@@ -299,18 +321,25 @@ export async function computeRankings(): Promise<{ ranking: RankingEntry[]; usin
   const gdp: Record<string, number | null> = { PL: gdpFrac("PL"), US: gdpFrac("US") };
 
   // Ograniczona wspolbieznosc — 57 spolek naraz zasypaloby Yahoo/baze. Kurs
-  // pobieramy TYLKO gdy jest cena docelowa (bez niej potencjal i tak = null),
-  // co oszczedza wiekszosc zapytan do Yahoo przy pelnym katalogu.
+  // pobieramy dla KAZDEJ spolki, bo momentum (sygnal ruszajacy sie codziennie)
+  // wymaga notowan niezaleznie od tego, czy jest cena docelowa analityka.
   const settled = await mapLimit(universe, 8, async (w) => {
     const signals = await getCompanySignals(w.ticker);
-    const hasTarget = signals.recommendations.some((r) => r.priceTarget !== null && r.priceTarget > 0);
-    const quote = hasTarget ? await fetchQuote(toYahooSymbol(w.ticker, w.market)).catch(() => null) : null;
+    const quote = await fetchQuote(toYahooSymbol(w.ticker, w.market)).catch(() => null);
     const sector = detectSector(w.ticker, w.market, w.bankierSymbol ?? null);
     return {
       company: w.name,
       ticker: w.ticker,
       market: w.market,
-      raw: rawSignals(w.market, signals, macroRaw[w.market] ?? null, quote?.close ?? null, sector, gdp[w.market] ?? null),
+      raw: rawSignals(
+        w.market,
+        signals,
+        macroRaw[w.market] ?? null,
+        quote?.close ?? null,
+        sector,
+        gdp[w.market] ?? null,
+        { r1m: quote?.r1m ?? null, r3m: quote?.r3m ?? null },
+      ),
     } as RankItem;
   });
   const items: RankItem[] = settled.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));

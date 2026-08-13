@@ -159,8 +159,10 @@ export default function RankingPage() {
             Obejmuje <strong>automatycznie cały katalog GPW (WIG20 + mWIG40)</strong> plus Twoją
             watchlistę — nic nie trzeba dodawać. Złożony wskaźnik 0-100 (50 = mediana rynku): każdy
             sygnał standaryzowany <strong>względem grupy porównawczej</strong> (odporny z-score,
-            winsoryzacja), agregowany wagowo i mapowany przez dystrybuantę normalną. Chip pokazuje
-            odchylenie w <strong>σ</strong> od mediany. Kliknij „Odśwież dane", aby dociągnąć sygnały.
+            winsoryzacja), agregowany wagowo i mapowany przez dystrybuantę normalną. Uwzględnia
+            <strong> momentum kursu (1M/3M) i bieżącą cenę</strong> — dlatego zmienia się z dnia na
+            dzień, a nie stoi w miejscu. Chip pokazuje odchylenie w <strong>σ</strong> od mediany.
+            Kliknij „Odśwież dane", aby dociągnąć sygnały.
           </p>
         </div>
         <div className="flex items-center gap-2">
