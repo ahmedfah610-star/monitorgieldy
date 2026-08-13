@@ -156,13 +156,15 @@ export default function RankingPage() {
         <div>
           <h1 className="text-2xl font-semibold">Ranking atrakcyjności</h1>
           <p className="max-w-2xl text-xs text-neutral-500">
-            Obejmuje <strong>automatycznie cały katalog GPW (WIG20 + mWIG40)</strong> plus Twoją
-            watchlistę — nic nie trzeba dodawać. Złożony wskaźnik 0-100 (50 = mediana rynku): każdy
-            sygnał standaryzowany <strong>względem grupy porównawczej</strong> (odporny z-score,
-            winsoryzacja), agregowany wagowo i mapowany przez dystrybuantę normalną. Uwzględnia
-            <strong> momentum kursu (1M/3M) i bieżącą cenę</strong> — dlatego zmienia się z dnia na
-            dzień, a nie stoi w miejscu. Chip pokazuje odchylenie w <strong>σ</strong> od mediany.
-            Kliknij „Odśwież dane", aby dociągnąć sygnały.
+            Odpowiada na pytanie: <strong>które spółki są najlepsze do kupna na dziś</strong> —
+            najwyższa oczekiwana stopa zwrotu od <strong>bieżącej ceny</strong>, przy zdrowych
+            fundamentach i sygnałach smart money. Obejmuje automatycznie cały katalog GPW (WIG20 +
+            mWIG40) plus Twoją watchlistę. Prowadzą: potencjał do celu analityków, prognoza wzrostu,
+            jakość wyników i konsensus; momentum (1M/3M) tylko potwierdza. Złożony wskaźnik 0-100
+            (50 = mediana rynku): każdy sygnał standaryzowany <strong>względem grupy porównawczej</strong>
+            (odporny z-score, winsoryzacja) i mapowany dystrybuantą normalną. Zmienia się codziennie,
+            bo dzisiejsza cena wchodzi do potencjału i momentum. Chip = odchylenie w <strong>σ</strong>
+            od mediany. Kliknij „Odśwież dane", aby dociągnąć sygnały.
           </p>
         </div>
         <div className="flex items-center gap-2">

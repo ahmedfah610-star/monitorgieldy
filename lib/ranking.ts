@@ -30,29 +30,34 @@ const HORIZON_DAYS = 180;
 const WINSOR = 2.5; // ograniczenie z-score
 const SPREAD = 0.9; // skala mapowania Φ (mniejsza => wiekszy rozrzut)
 
+// Cel: "najlepsza spolka do KUPNA na dzis" = najwyzsza oczekiwana stopa zwrotu od
+// BIEZACEJ ceny, przy zdrowych fundamentach i sygnalach smart money. Dlatego
+// prowadzi potencjal (upside od dzisiejszego kursu), prognoza wzrostu, jakosc
+// wynikow i konsensus; momentum tylko POTWIERDZA (nie goni drogich akcji).
+// Ranking rusza sie codziennie, bo dzisiejsza cena wchodzi do potencjalu i momentum.
 const WEIGHTS: Record<string, number> = {
-  momentum: 0.16, // sila wzgledna kursu (1M/3M) — jedyny sygnal ruszajacy sie codziennie
-  consensus: 0.14, // wydzwiek rekomendacji (Kupuj/Trzymaj/Sprzedaj)
-  potential: 0.12, // potencjal: mediana ceny docelowej vs kurs biezacy (stlumiony)
-  insider: 0.12, // transakcje osob zarzadzajacych
-  short: 0.12, // krotkie pozycje (KNF)
-  financials: 0.1, // realne wyniki r/r + k/k (jakosc ostatniego wykonania)
-  forecast: 0.1, // prognozowana dynamika przychodow (firma+branza+makro)
+  potential: 0.18, // upside: mediana ceny docelowej vs kurs BIEZACY (stlumiony) — naglowek tezy
+  forecast: 0.12, // prognozowana dynamika przychodow (firma+branza+makro)
+  consensus: 0.12, // wydzwiek rekomendacji (Kupuj/Trzymaj/Sprzedaj)
+  financials: 0.12, // realne wyniki r/r + k/k (jakosc ostatniego wykonania)
+  insider: 0.12, // transakcje osob zarzadzajacych (smart money kupuje dzis)
+  short: 0.1, // krotkie pozycje (KNF) — niski short = mniej zakladow na spadek
+  momentum: 0.1, // sila wzgledna kursu (1M/3M) — potwierdzenie rynku, timing wejscia
   holdings: 0.06, // znaczne pakiety (art. 69)
-  macro: 0.04, // koniunktura makro rynku (nizsza, bo czesc jest juz w prognozie)
   dividend: 0.04, // stopa dywidendy (prognoza z dyskontem)
+  macro: 0.04, // koniunktura makro rynku (nizsza, bo czesc jest juz w prognozie)
 };
 const LABELS: Record<string, string> = {
-  momentum: "Momentum",
-  consensus: "Rekomendacje",
   potential: "Potencjał",
+  forecast: "Prognoza wzrostu",
+  consensus: "Rekomendacje",
+  financials: "Wyniki r/r",
   insider: "Insiderzy",
   short: "Krótkie pozycje",
-  financials: "Wyniki r/r",
-  forecast: "Prognoza wzrostu",
+  momentum: "Momentum",
   holdings: "Znaczne pakiety",
-  macro: "Koniunktura",
   dividend: "Dywidenda",
+  macro: "Koniunktura",
 };
 const KEYS = Object.keys(WEIGHTS);
 
