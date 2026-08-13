@@ -36,18 +36,20 @@ const SPREAD = 0.9; // skala mapowania Φ (mniejsza => wiekszy rozrzut)
 // wynikow i konsensus; momentum tylko POTWIERDZA (nie goni drogich akcji).
 // Ranking rusza sie codziennie, bo dzisiejsza cena wchodzi do potencjalu i momentum.
 const WEIGHTS: Record<string, number> = {
-  potential: 0.18, // upside: mediana ceny docelowej vs kurs BIEZACY (stlumiony) — naglowek tezy
-  forecast: 0.11, // prognozowana dynamika przychodow (firma+branza+makro)
-  consensus: 0.11, // wydzwiek rekomendacji (Kupuj/Trzymaj/Sprzedaj)
+  value: 0.1, // wycena: rentownosc zyskow E/P = 1/(C/Z) — twarda taniosc vs cena biezaca
+  potential: 0.12, // upside: mediana ceny docelowej vs kurs BIEZACY (stlumiony)
+  forecast: 0.1, // prognozowana dynamika przychodow (firma+branza+makro)
+  consensus: 0.1, // wydzwiek rekomendacji (Kupuj/Trzymaj/Sprzedaj)
   financials: 0.12, // realne wyniki r/r + k/k (jakosc ostatniego wykonania)
-  insider: 0.12, // transakcje osob zarzadzajacych (smart money kupuje dzis)
+  insider: 0.11, // transakcje osob zarzadzajacych (smart money kupuje dzis)
   short: 0.1, // krotkie pozycje (KNF) — niski short = mniej zakladow na spadek
   momentum: 0.1, // sila wzgledna kursu (1M/3M) — potwierdzenie rynku, timing wejscia
   sector: 0.06, // koniunktura SEKTORA spolki (prior + oddolna sila 3M) — roznicuje po branzy
-  holdings: 0.06, // znaczne pakiety (art. 69)
+  holdings: 0.05, // znaczne pakiety (art. 69)
   dividend: 0.04, // stopa dywidendy (prognoza z dyskontem)
 };
 const LABELS: Record<string, string> = {
+  value: "Wycena",
   potential: "Potencjał",
   forecast: "Prognoza wzrostu",
   consensus: "Rekomendacje",
@@ -110,9 +112,21 @@ function rawSignals(
   sector: string,
   gdp: number | null,
   mom: { r1m: number | null; r3m: number | null },
+  fin: { pe: number | null; pbv: number | null },
 ): Record<string, Raw> {
   const out: Record<string, Raw> = {};
   let revGrowth: number | null = null; // dynamika przychodow firmy — do prognozy
+
+  // Wycena: rentownosc zyskow E/P = 1/(C/Z). Wyzej = taniej wzgledem zyskow = lepiej.
+  // Strata (C/Z <= 0) => brak sygnalu (nie nagradzamy sztucznie). C/WK dla kontekstu.
+  if (fin.pe !== null && fin.pe > 0) {
+    out.value = {
+      value: 1 / fin.pe,
+      detail: `C/Z ${fin.pe.toFixed(1)}${fin.pbv !== null && fin.pbv > 0 ? ` · C/WK ${fin.pbv.toFixed(1)}` : ""}`,
+    };
+  } else {
+    out.value = { value: null, detail: fin.pe !== null && fin.pe <= 0 ? "strata (C/Z ujemne)" : "brak" };
+  }
 
   // Momentum: sila wzgledna kursu = blend zwrotu 1M i 3M (realne notowania, zmienia
   // sie codziennie). Wyzej = lepiej. Wymaga chociaz jednego okna historii.
@@ -359,6 +373,7 @@ export async function computeRankings(): Promise<{ ranking: RankingEntry[]; usin
       f.sector,
       gdp[f.w.market] ?? null,
       { r1m: f.quote?.r1m ?? null, r3m: f.quote?.r3m ?? null },
+      { pe: f.quote?.pe ?? null, pbv: f.quote?.pbv ?? null },
     ),
   }));
   return { ranking: buildRanking(items), usingDb: true };

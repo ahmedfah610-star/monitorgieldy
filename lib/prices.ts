@@ -1,6 +1,6 @@
 import { hasDb, upsertPriceSnapshots, type PriceSnapshot } from "./db";
 import { getUniverse, mapLimit } from "./universe";
-import { fetchQuote, toYahooSymbol } from "./yahoo";
+import { fetchQuote, fetchFundamentals, toYahooSymbol } from "./yahoo";
 
 /**
  * Cache notowan dla rankingu (Faza 19).
@@ -21,24 +21,39 @@ export interface PricesRefreshSummary {
 export async function refreshPrices(): Promise<PricesRefreshSummary> {
   const errors: string[] = [];
   const universe = await getUniverse();
+  const symbolOf = (w: (typeof universe)[number]) => toYahooSymbol(w.ticker, w.market);
 
-  const settled = await mapLimit(universe, 8, async (w): Promise<PriceSnapshot> => {
-    const q = await fetchQuote(toYahooSymbol(w.ticker, w.market));
-    return {
+  // Wskazniki wyceny (C/Z, C/WK, kapitalizacja, EPS TTM) — jednym zapytaniem
+  // wsadowym dla calego uniwersum. Kurs+momentum lecimy per spolka (historia).
+  const [settled, funda] = await Promise.all([
+    mapLimit(universe, 8, async (w) => {
+      const q = await fetchQuote(symbolOf(w));
+      return { w, q };
+    }),
+    fetchFundamentals(universe.map(symbolOf)).catch(() => new Map()),
+  ]);
+
+  const rows: PriceSnapshot[] = [];
+  settled.forEach((r, i) => {
+    if (r.status !== "fulfilled") {
+      errors.push(`${universe[i].ticker}: ${String(r.reason).slice(0, 100)}`);
+      return;
+    }
+    const { w, q } = r.value;
+    const f = funda.get(symbolOf(w));
+    rows.push({
       ticker: w.ticker,
       market: w.market,
       close: q.close,
       changePct: q.changePct,
       r1m: q.r1m,
       r3m: q.r3m,
-      currency: q.currency,
-    };
-  });
-
-  const rows: PriceSnapshot[] = [];
-  settled.forEach((r, i) => {
-    if (r.status === "fulfilled") rows.push(r.value);
-    else errors.push(`${universe[i].ticker}: ${String(r.reason).slice(0, 100)}`);
+      currency: q.currency ?? f?.currency ?? null,
+      pe: f?.pe ?? null,
+      pbv: f?.pbv ?? null,
+      marketCap: f?.marketCap ?? null,
+      epsTtm: f?.epsTtm ?? null,
+    });
   });
 
   const { inserted } = await upsertPriceSnapshots(rows);
