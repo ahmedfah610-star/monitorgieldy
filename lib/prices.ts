@@ -1,4 +1,4 @@
-import { hasDb, upsertPriceSnapshots, type PriceSnapshot } from "./db";
+import { hasDb, ensurePriceSchema, upsertPriceSnapshots, type PriceSnapshot } from "./db";
 import { getUniverse, mapLimit } from "./universe";
 import { fetchQuote, fetchFundamentals, toYahooSymbol } from "./yahoo";
 
@@ -20,6 +20,9 @@ export interface PricesRefreshSummary {
 
 export async function refreshPrices(): Promise<PricesRefreshSummary> {
   const errors: string[] = [];
+  // Samonaprawa schematu — gwarantuje kolumny (r1m/r3m/pe/pbv/…) przed zapisem,
+  // wiec dodanie nowej kolumny nie wymaga recznego /api/init-db.
+  await ensurePriceSchema();
   const universe = await getUniverse();
   const symbolOf = (w: (typeof universe)[number]) => toYahooSymbol(w.ticker, w.market);
 

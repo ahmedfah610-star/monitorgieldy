@@ -36,21 +36,12 @@ export const DEFAULT_WATCHLIST: WatchlistItem[] = [
   { ticker: "nvda", market: "US", name: "NVIDIA", bankierSymbol: null },
 ];
 
-export async function initSchema(): Promise<void> {
-  await sql`
-    CREATE TABLE IF NOT EXISTS watchlist (
-      id            SERIAL PRIMARY KEY,
-      ticker        TEXT NOT NULL,
-      market        TEXT NOT NULL CHECK (market IN ('PL', 'US')),
-      name          TEXT NOT NULL,
-      bankier_symbol TEXT,
-      created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-      UNIQUE (ticker, market)
-    );
-  `;
-  // Migracja dla istniejacych baz (Faza 0 nie miala tej kolumny).
-  await sql`ALTER TABLE watchlist ADD COLUMN IF NOT EXISTS bankier_symbol TEXT;`;
-
+/**
+ * Schemat cache'u notowan (tabela + migracje kolumn). Wydzielone, bo
+ * refreshPrices wola to samodzielnie — dzieki temu dodanie nowej kolumny nie
+ * wymaga recznego /api/init-db (samonaprawa). Wszystko idempotentne.
+ */
+export async function ensurePriceSchema(): Promise<void> {
   await sql`
     CREATE TABLE IF NOT EXISTS price_snapshots (
       id          SERIAL PRIMARY KEY,
@@ -73,6 +64,24 @@ export async function initSchema(): Promise<void> {
   await sql`ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS pbv NUMERIC;`;
   await sql`ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS market_cap NUMERIC;`;
   await sql`ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS eps_ttm NUMERIC;`;
+}
+
+export async function initSchema(): Promise<void> {
+  await sql`
+    CREATE TABLE IF NOT EXISTS watchlist (
+      id            SERIAL PRIMARY KEY,
+      ticker        TEXT NOT NULL,
+      market        TEXT NOT NULL CHECK (market IN ('PL', 'US')),
+      name          TEXT NOT NULL,
+      bankier_symbol TEXT,
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE (ticker, market)
+    );
+  `;
+  // Migracja dla istniejacych baz (Faza 0 nie miala tej kolumny).
+  await sql`ALTER TABLE watchlist ADD COLUMN IF NOT EXISTS bankier_symbol TEXT;`;
+
+  await ensurePriceSchema();
 
   await sql`
     CREATE TABLE IF NOT EXISTS recommendations (
