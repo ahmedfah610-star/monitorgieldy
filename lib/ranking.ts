@@ -112,20 +112,22 @@ function rawSignals(
   sector: string,
   gdp: number | null,
   mom: { r1m: number | null; r3m: number | null },
-  fin: { pe: number | null; pbv: number | null },
+  fin: { pe: number | null; pbv: number | null; marketCap: number | null },
 ): Record<string, Raw> {
   const out: Record<string, Raw> = {};
   let revGrowth: number | null = null; // dynamika przychodow firmy — do prognozy
 
   // Wycena: rentownosc zyskow E/P = 1/(C/Z). Wyzej = taniej wzgledem zyskow = lepiej.
-  // Strata (C/Z <= 0) => brak sygnalu (nie nagradzamy sztucznie). C/WK dla kontekstu.
+  // Strata (C/Z <= 0) => brak sygnalu (nie nagradzamy sztucznie). C/WK + kap. dla kontekstu.
+  // Standaryzowane WZGLEDEM SEKTORA w buildRanking (banki vs tech maja inny poziom C/Z).
+  const capStr = fin.marketCap !== null && fin.marketCap > 0 ? ` · kap. ${(fin.marketCap / 1e9).toFixed(1)} mld` : "";
   if (fin.pe !== null && fin.pe > 0) {
     out.value = {
       value: 1 / fin.pe,
-      detail: `C/Z ${fin.pe.toFixed(1)}${fin.pbv !== null && fin.pbv > 0 ? ` · C/WK ${fin.pbv.toFixed(1)}` : ""}`,
+      detail: `C/Z ${fin.pe.toFixed(1)}${fin.pbv !== null && fin.pbv > 0 ? ` · C/WK ${fin.pbv.toFixed(1)}` : ""}${capStr}`,
     };
   } else {
-    out.value = { value: null, detail: fin.pe !== null && fin.pe <= 0 ? "strata (C/Z ujemne)" : "brak" };
+    out.value = { value: null, detail: (fin.pe !== null && fin.pe <= 0 ? "strata (C/Z ujemne)" : "brak") + capStr };
   }
 
   // Momentum: sila wzgledna kursu = blend zwrotu 1M i 3M (realne notowania, zmienia
@@ -278,27 +280,58 @@ export interface RankItem {
   company: string;
   ticker: string;
   market: Market;
+  sector?: string;
   raw: Record<string, Raw>;
 }
 
+/** Odporne statystyki (mediana + skala z MAD, fallback na odch. std). */
+function robustStat(vals: number[]): { med: number; scale: number } | null {
+  if (vals.length < 2) return null;
+  const med = median(vals);
+  let scale = 1.4826 * mad(vals, med);
+  if (scale === 0) {
+    const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+    scale = stdev(vals, mean);
+  }
+  return { med, scale };
+}
+
+// Wskazniki wyceny sa STRUKTURALNIE rozne miedzy branzami (banki C/Z ~8-12, tech
+// ~30-50). Standaryzacja globalna karalaby tech i nagradzala banki bez zwiazku z
+// realnym niedowartosciowaniem. Dlatego "value" standaryzujemy WZGLEDEM SEKTORA
+// (gdy sektor ma >=3 spolki z danymi), inaczej globalnie.
+const SECTOR_RELATIVE = new Set(["value"]);
+const MIN_SECTOR_N = 3;
+
 /** Buduje ranking z surowych sygnalow: standaryzacja przekrojowa + agregacja. */
 export function buildRanking(items: RankItem[]): RankingEntry[] {
-  // Statystyki odpornosciowe per skladowa (na zbiorze spolek).
+  // Statystyki odpornosciowe per skladowa (globalnie, na zbiorze spolek).
   const stat: Record<string, { med: number; scale: number } | null> = {};
   for (const key of KEYS) {
     const vals = items.map((it) => it.raw[key]?.value).filter((v): v is number => v !== null && Number.isFinite(v));
-    if (vals.length < 2) {
-      stat[key] = null; // za malo danych, by rozroznic — z=0
-      continue;
+    stat[key] = robustStat(vals);
+  }
+
+  // Statystyki WEWNATRZ-SEKTOROWE dla wskaznikow sektorowo-wzglednych (wycena).
+  const sectorStat: Record<string, Map<string, { med: number; scale: number }>> = {};
+  for (const key of SECTOR_RELATIVE) {
+    const bySector = new Map<string, number[]>();
+    for (const it of items) {
+      const v = it.raw[key]?.value;
+      if (v === null || v === undefined || !Number.isFinite(v)) continue;
+      const sec = it.sector ?? "Inna";
+      const arr = bySector.get(sec) ?? [];
+      arr.push(v as number);
+      bySector.set(sec, arr);
     }
-    const med = median(vals);
-    let scale = 1.4826 * mad(vals, med);
-    if (scale === 0) {
-      // MAD=0 (>=polowa identyczna) — fallback na odchylenie standardowe.
-      const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
-      scale = stdev(vals, mean);
+    const m = new Map<string, { med: number; scale: number }>();
+    for (const [sec, vals] of bySector) {
+      if (vals.length >= MIN_SECTOR_N) {
+        const st = robustStat(vals);
+        if (st && st.scale > 0) m.set(sec, st);
+      }
     }
-    stat[key] = { med, scale };
+    sectorStat[key] = m;
   }
 
   const entries: RankingEntry[] = items.map((it) => {
@@ -306,10 +339,15 @@ export function buildRanking(items: RankItem[]): RankingEntry[] {
       const raw = it.raw[key] ?? { value: null, detail: "brak" };
       const w = WEIGHTS[key];
       if (raw.value === null) return { key, label: LABELS[key], score: null, weight: w, detail: raw.detail };
-      const st = stat[key];
+      let st = stat[key];
+      let relNote = "";
+      if (SECTOR_RELATIVE.has(key)) {
+        const ss = sectorStat[key]?.get(it.sector ?? "Inna");
+        if (ss) { st = ss; relNote = " vs sektor"; }
+      }
       let z = 0;
       if (st && st.scale > 0) z = clamp((raw.value - st.med) / st.scale, -WINSOR, WINSOR);
-      const sigma = `${z >= 0 ? "+" : ""}${z.toFixed(1)}σ`;
+      const sigma = `${z >= 0 ? "+" : ""}${z.toFixed(1)}σ${relNote}`;
       return { key, label: LABELS[key], score: z, weight: w, detail: `${raw.detail} · ${sigma}` };
     });
 
@@ -366,6 +404,7 @@ export async function computeRankings(): Promise<{ ranking: RankingEntry[]; usin
     company: f.w.name,
     ticker: f.w.ticker,
     market: f.w.market,
+    sector: f.sector,
     raw: rawSignals(
       f.signals,
       climates.get(f.sector) ?? null,
@@ -373,7 +412,7 @@ export async function computeRankings(): Promise<{ ranking: RankingEntry[]; usin
       f.sector,
       gdp[f.w.market] ?? null,
       { r1m: f.quote?.r1m ?? null, r3m: f.quote?.r3m ?? null },
-      { pe: f.quote?.pe ?? null, pbv: f.quote?.pbv ?? null },
+      { pe: f.quote?.pe ?? null, pbv: f.quote?.pbv ?? null, marketCap: f.quote?.marketCap ?? null },
     ),
   }));
   return { ranking: buildRanking(items), usingDb: true };
