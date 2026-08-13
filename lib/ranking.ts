@@ -1,6 +1,5 @@
-import { hasDb, getCompanySignals, getMacroSnapshots, type CompanySignals } from "./db";
+import { hasDb, getCompanySignals, getMacroSnapshots, getLatestPrices, type CompanySignals } from "./db";
 import { getUniverse, mapLimit } from "./universe";
-import { fetchQuote, toYahooSymbol } from "./yahoo";
 import { projectGrowth } from "./forecast";
 import { detectSector } from "./sectors";
 import { computeSectorClimates, type SectorClimate } from "./sectorClimate";
@@ -330,12 +329,15 @@ export async function computeRankings(): Promise<{ ranking: RankingEntry[]; usin
   };
   const gdp: Record<string, number | null> = { PL: gdpFrac("PL"), US: gdpFrac("US") };
 
-  // Przejscie 1: sygnaly + notowania + sektor dla kazdej spolki. Ograniczona
-  // wspolbieznosc — 57 spolek naraz zasypaloby Yahoo/baze. Kurs pobieramy dla
-  // KAZDEJ spolki (momentum i koniunktura sektora wymagaja notowan).
+  // Notowania z cache'u bazy (zapisane przy odswiezaniu przez /api/prices/refresh)
+  // — ranking NIE bije juz do Yahoo przy kazdym wejsciu. Brak wpisu => kurs null.
+  const prices = await getLatestPrices();
+
+  // Przejscie 1: sygnaly + sektor dla kazdej spolki (tylko baza, ograniczona
+  // wspolbieznosc, bo kazde getCompanySignals to zestaw zapytan).
   const settled = await mapLimit(universe, 8, async (w) => {
     const signals = await getCompanySignals(w.ticker);
-    const quote = await fetchQuote(toYahooSymbol(w.ticker, w.market)).catch(() => null);
+    const quote = prices.get(w.ticker) ?? null;
     const sector = detectSector(w.ticker, w.market, w.bankierSymbol ?? null);
     return { w, signals, quote, sector };
   });

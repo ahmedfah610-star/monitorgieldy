@@ -63,6 +63,11 @@ export async function initSchema(): Promise<void> {
       UNIQUE (ticker, market, snap_date)
     );
   `;
+  // Cache momentum/waluty (Faza 19) — ranking czyta notowania z bazy zamiast bic
+  // do Yahoo przy kazdym wejsciu. Kolumny dodane migracyjnie dla istniejacych baz.
+  await sql`ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS r1m NUMERIC;`;
+  await sql`ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS r3m NUMERIC;`;
+  await sql`ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS currency TEXT;`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS recommendations (
@@ -290,6 +295,50 @@ export async function deleteWatchlistItem(id: number): Promise<void> {
   await sql`DELETE FROM dividends WHERE watch_ticker = ${ticker};`;
   await sql`DELETE FROM ai_conclusions WHERE ticker = ${ticker};`;
   await sql`DELETE FROM price_snapshots WHERE ticker = ${ticker};`;
+}
+
+// ---------- Price snapshots (cache notowan dla rankingu) ----------
+
+export interface PriceSnapshot {
+  ticker: string;
+  market: Market;
+  close: number | null;
+  changePct: number | null;
+  r1m: number | null;
+  r3m: number | null;
+  currency: string | null;
+}
+
+/** Zapisuje notowania dnia (upsert po ticker+market+dzis). Zwraca liczbe wierszy. */
+export async function upsertPriceSnapshots(rows: PriceSnapshot[]): Promise<{ inserted: number }> {
+  let inserted = 0;
+  for (const r of rows) {
+    if (r.close === null) continue; // bez ceny nie ma czego cache'owac
+    await sql`
+      INSERT INTO price_snapshots (ticker, market, snap_date, close, change_pct, r1m, r3m, currency)
+      VALUES (${r.ticker}, ${r.market}, CURRENT_DATE, ${r.close}, ${r.changePct}, ${r.r1m}, ${r.r3m}, ${r.currency})
+      ON CONFLICT (ticker, market, snap_date)
+      DO UPDATE SET close = EXCLUDED.close, change_pct = EXCLUDED.change_pct,
+        r1m = EXCLUDED.r1m, r3m = EXCLUDED.r3m, currency = EXCLUDED.currency, created_at = now();
+    `;
+    inserted += 1;
+  }
+  return { inserted };
+}
+
+/** Najnowszy zapis notowania per ticker (klucz = ticker). Do rankingu. */
+export async function getLatestPrices(): Promise<Map<string, PriceSnapshot>> {
+  const { rows } = await sql.query<PriceSnapshot & { snapDate: string }>(
+    `SELECT DISTINCT ON (ticker, market)
+       ticker, market, close::float8 AS "close", change_pct::float8 AS "changePct",
+       r1m::float8 AS "r1m", r3m::float8 AS "r3m", currency,
+       to_char(snap_date,'YYYY-MM-DD') AS "snapDate"
+     FROM price_snapshots
+     ORDER BY ticker, market, snap_date DESC;`,
+  );
+  const out = new Map<string, PriceSnapshot>();
+  for (const r of rows) out.set(r.ticker, r);
+  return out;
 }
 
 // ---------- Recommendations ----------

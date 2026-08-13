@@ -55,6 +55,7 @@ function Bar({ score }: { score: number }) {
 // Kazde zrodlo odswiezamy OSOBNYM requestem — na Vercel Hobby (60s/funkcja)
 // wolne insider/pakiety (PDF-y) dostaja wtedy wlasny budzet czasu i sie konczą.
 const STEPS: { key: string; label: string; url: string }[] = [
+  { key: "prices", label: "Notowania (kurs + momentum)", url: "/api/prices/refresh" },
   { key: "recommendations", label: "Rekomendacje", url: "/api/recommendations/refresh" },
   { key: "reports", label: "Raporty", url: "/api/reports/refresh" },
   { key: "short", label: "Krótkie pozycje", url: "/api/short/refresh" },
@@ -164,7 +165,8 @@ export default function RankingPage() {
             (50 = mediana rynku): każdy sygnał standaryzowany <strong>względem grupy porównawczej</strong>
             (odporny z-score, winsoryzacja) i mapowany dystrybuantą normalną. Zmienia się codziennie,
             bo dzisiejsza cena wchodzi do potencjału i momentum. Chip = odchylenie w <strong>σ</strong>
-            od mediany. Kliknij „Odśwież dane", aby dociągnąć sygnały.
+            od mediany. Notowania (kurs + momentum) są cache'owane w bazie przy odświeżaniu, więc
+            ranking ładuje się natychmiast. Kliknij „Odśwież dane", aby dociągnąć sygnały.
           </p>
         </div>
         <div className="flex items-center gap-2">

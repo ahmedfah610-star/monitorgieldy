@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { refreshAll } from "@/lib/refreshAll";
+import { refreshPrices } from "@/lib/prices";
 import { hasDb } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 /**
- * Odswieza wszystkie zrodla PL naraz (rekomendacje, raporty, shorty, dywidendy,
- * insiderzy, znaczne pakiety). Jeden endpoint = jeden Vercel Cron.
- * POST — przycisk w UI; GET — Vercel Cron (chroniony CRON_SECRET jesli ustawiony).
+ * Zaciaga notowania (kurs, zmiana dzienna, momentum 1M/3M) dla calego uniwersum
+ * i zapisuje do bazy (cache dla rankingu). POST — przycisk; GET — Vercel Cron.
  */
 async function run(req: NextRequest, requireSecret: boolean) {
   if (!hasDb()) {
@@ -26,10 +25,10 @@ async function run(req: NextRequest, requireSecret: boolean) {
   }
 
   try {
-    const summary = await refreshAll();
+    const summary = await refreshPrices();
     return NextResponse.json(summary);
   } catch (e) {
-    console.error("[/api/refresh-all] error", e);
+    console.error("[/api/prices/refresh] error", e);
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "unknown error" },
       { status: 500 },
