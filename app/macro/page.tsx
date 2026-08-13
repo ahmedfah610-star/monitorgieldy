@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { MarketMacro } from "@/lib/types";
+import { SECTOR_CLIMATE_PRIOR } from "@/lib/sectorClimate";
 
 interface View {
   pl: MarketMacro | null;
@@ -69,6 +70,49 @@ function MarketCard({ m, flag, title }: { m: MarketMacro | null; flag: string; t
   );
 }
 
+/** Przygotowana z gory koniunktura sektorow (prior strukturalny). W rankingu
+ *  blendowana dodatkowo z oddolna sila 3M spolek danego sektora. */
+function SectorClimateSection() {
+  const rows = Object.entries(SECTOR_CLIMATE_PRIOR)
+    .filter(([name]) => name !== "Inna")
+    .map(([name, p]) => ({ name, score: Math.round((p.climate + 1) * 50), note: p.note }))
+    .sort((a, b) => b.score - a.score);
+
+  return (
+    <section className="space-y-3 rounded-lg border border-neutral-800 p-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-300">
+          🏭 Koniunktura sektorów
+        </h2>
+        <span className="text-xs text-neutral-600">prior 0-100 · używany w rankingu</span>
+      </div>
+      <p className="text-xs text-neutral-500">
+        Przygotowana koniunktura dla każdego sektora z WIG20/mWIG40 (i sektorów US). To wskaźnik
+        <strong> per branża</strong>, nie wspólny dla całego rynku — np. Orlen dostaje koniunkturę
+        paliw/energetyki, PKO bankowości. W rankingu prior jest łączony (0.6/0.4) z bieżącą siłą 3M
+        spółek danego sektora, więc porusza się z rynkiem.
+      </p>
+      <div className="space-y-1.5">
+        {rows.map((r) => (
+          <div key={r.name} className="flex items-center gap-3 border-b border-neutral-900 py-1.5 last:border-0">
+            <span className="w-40 shrink-0 text-sm text-neutral-200">{r.name}</span>
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-neutral-800">
+              <div
+                className={`h-full rounded-full ${r.score >= 60 ? "bg-emerald-500" : r.score <= 40 ? "bg-red-500" : "bg-neutral-500"}`}
+                style={{ width: `${r.score}%` }}
+              />
+            </div>
+            <span className={`w-8 shrink-0 text-right text-sm font-semibold tabular-nums ${scoreColor(r.score)}`}>
+              {r.score}
+            </span>
+            <span className="hidden flex-[2] text-xs text-neutral-500 lg:block">{r.note}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function MacroPage() {
   const [view, setView] = useState<View | null>(null);
   const [loading, setLoading] = useState(false);
@@ -115,8 +159,10 @@ export default function MacroPage() {
           <h1 className="text-2xl font-semibold">Koniunktura makro</h1>
           <p className="max-w-2xl text-xs text-neutral-500">
             Klimat makroekonomiczny Polski i USA — inflacja, wzrost PKB, bezrobocie (World Bank,
-            ostatnie dostępne roczne) + kursy NBP. „Klimat" 0-100 wchodzi też jako czynnik do
-            rankingu atrakcyjności (wspólny dla spółek danego rynku). Bez AI.
+            ostatnie dostępne roczne) + kursy NBP. Wskaźnik informacyjny. W rankingu atrakcyjności
+            koniunkturę reprezentuje teraz <strong>koniunktura sektora</strong> (poniżej), a nie
+            wspólny klimat kraju — bo to branża realnie różnicuje spółki. PKB kraju wciąż koryguje
+            prognozy przychodów. Bez AI.
           </p>
         </div>
         <button
@@ -146,6 +192,8 @@ export default function MacroPage() {
         <MarketCard m={view?.pl ?? null} flag="🇵🇱" title="Polska" />
         <MarketCard m={view?.us ?? null} flag="🇺🇸" title="USA" />
       </div>
+
+      <SectorClimateSection />
 
       <p className="text-[10px] text-neutral-600">
         Źródła: World Bank (wskaźniki roczne, ostatnie dostępne) + NBP (kursy dzienne). To kluczowe

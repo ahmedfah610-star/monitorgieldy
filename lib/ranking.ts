@@ -3,6 +3,7 @@ import { getUniverse, mapLimit } from "./universe";
 import { fetchQuote, toYahooSymbol } from "./yahoo";
 import { projectGrowth } from "./forecast";
 import { detectSector } from "./sectors";
+import { computeSectorClimates, type SectorClimate } from "./sectorClimate";
 import type { RankingComponent, RankingEntry, Market } from "./types";
 
 /**
@@ -37,15 +38,15 @@ const SPREAD = 0.9; // skala mapowania Φ (mniejsza => wiekszy rozrzut)
 // Ranking rusza sie codziennie, bo dzisiejsza cena wchodzi do potencjalu i momentum.
 const WEIGHTS: Record<string, number> = {
   potential: 0.18, // upside: mediana ceny docelowej vs kurs BIEZACY (stlumiony) — naglowek tezy
-  forecast: 0.12, // prognozowana dynamika przychodow (firma+branza+makro)
-  consensus: 0.12, // wydzwiek rekomendacji (Kupuj/Trzymaj/Sprzedaj)
+  forecast: 0.11, // prognozowana dynamika przychodow (firma+branza+makro)
+  consensus: 0.11, // wydzwiek rekomendacji (Kupuj/Trzymaj/Sprzedaj)
   financials: 0.12, // realne wyniki r/r + k/k (jakosc ostatniego wykonania)
   insider: 0.12, // transakcje osob zarzadzajacych (smart money kupuje dzis)
   short: 0.1, // krotkie pozycje (KNF) — niski short = mniej zakladow na spadek
   momentum: 0.1, // sila wzgledna kursu (1M/3M) — potwierdzenie rynku, timing wejscia
+  sector: 0.06, // koniunktura SEKTORA spolki (prior + oddolna sila 3M) — roznicuje po branzy
   holdings: 0.06, // znaczne pakiety (art. 69)
   dividend: 0.04, // stopa dywidendy (prognoza z dyskontem)
-  macro: 0.04, // koniunktura makro rynku (nizsza, bo czesc jest juz w prognozie)
 };
 const LABELS: Record<string, string> = {
   potential: "Potencjał",
@@ -55,9 +56,9 @@ const LABELS: Record<string, string> = {
   insider: "Insiderzy",
   short: "Krótkie pozycje",
   momentum: "Momentum",
+  sector: "Koniunktura sektora",
   holdings: "Znaczne pakiety",
   dividend: "Dywidenda",
-  macro: "Koniunktura",
 };
 const KEYS = Object.keys(WEIGHTS);
 
@@ -104,9 +105,8 @@ interface Raw {
 }
 
 function rawSignals(
-  market: Market,
   s: CompanySignals,
-  macroRaw: number | null,
+  sectorClimate: SectorClimate | null,
   price: number | null,
   sector: string,
   gdp: number | null,
@@ -233,11 +233,17 @@ function rawSignals(
     detail: `${projectedGrowth >= 0 ? "+" : ""}${(projectedGrowth * 100).toFixed(0)}% przychodów`,
   };
 
-  // Koniunktura makro rynku (wspolna dla rynku).
-  out.macro =
-    macroRaw === null || macroRaw === undefined
-      ? { value: null, detail: "brak" }
-      : { value: macroRaw, detail: `klimat ${market} ${Math.round((macroRaw + 1) * 50)}/100` };
+  // Koniunktura SEKTORA spolki (prior strukturalny + oddolna sila 3M sektora).
+  // Roznicuje spolki po branzy — inaczej niz dawne makro kraju (wspolne dla rynku).
+  if (sectorClimate === null) {
+    out.sector = { value: null, detail: "brak" };
+  } else {
+    const src = sectorClimate.bottomUp === null ? "prior" : "prior + siła 3M";
+    out.sector = {
+      value: sectorClimate.climate,
+      detail: `${sector} ${Math.round((sectorClimate.climate + 1) * 50)}/100 (${src})`,
+    };
+  }
 
   // Dywidenda: stopa, z dyskontem dla prognozowanej (proponowana/projekt).
   const withY = s.dividends.filter((d) => d.yieldPct !== null && d.yieldPct > 0);
@@ -318,35 +324,40 @@ export function buildRanking(items: RankItem[]): RankingEntry[] {
 export async function computeRankings(): Promise<{ ranking: RankingEntry[]; usingDb: boolean }> {
   if (!hasDb()) return { ranking: [], usingDb: false };
   const [universe, macro] = await Promise.all([getUniverse(), getMacroSnapshots()]);
-  const macroRaw: Record<string, number | null> = { PL: macro.PL?.scoreRaw ?? null, US: macro.US?.scoreRaw ?? null };
   const gdpFrac = (m: Market): number | null => {
     const v = macro[m]?.indicators?.find((i) => i.key === "gdp")?.value;
     return v === null || v === undefined ? null : v / 100;
   };
   const gdp: Record<string, number | null> = { PL: gdpFrac("PL"), US: gdpFrac("US") };
 
-  // Ograniczona wspolbieznosc — 57 spolek naraz zasypaloby Yahoo/baze. Kurs
-  // pobieramy dla KAZDEJ spolki, bo momentum (sygnal ruszajacy sie codziennie)
-  // wymaga notowan niezaleznie od tego, czy jest cena docelowa analityka.
+  // Przejscie 1: sygnaly + notowania + sektor dla kazdej spolki. Ograniczona
+  // wspolbieznosc — 57 spolek naraz zasypaloby Yahoo/baze. Kurs pobieramy dla
+  // KAZDEJ spolki (momentum i koniunktura sektora wymagaja notowan).
   const settled = await mapLimit(universe, 8, async (w) => {
     const signals = await getCompanySignals(w.ticker);
     const quote = await fetchQuote(toYahooSymbol(w.ticker, w.market)).catch(() => null);
     const sector = detectSector(w.ticker, w.market, w.bankierSymbol ?? null);
-    return {
-      company: w.name,
-      ticker: w.ticker,
-      market: w.market,
-      raw: rawSignals(
-        w.market,
-        signals,
-        macroRaw[w.market] ?? null,
-        quote?.close ?? null,
-        sector,
-        gdp[w.market] ?? null,
-        { r1m: quote?.r1m ?? null, r3m: quote?.r3m ?? null },
-      ),
-    } as RankItem;
+    return { w, signals, quote, sector };
   });
-  const items: RankItem[] = settled.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
+  const fetched = settled.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
+
+  // Koniunktura sektorow: prior strukturalny + oddolna srednia sila 3M spolek
+  // danego sektora z uniwersum. Liczona RAZ, wspoldzielona przez spolki sektora.
+  const climates = computeSectorClimates(fetched.map((f) => ({ sector: f.sector, r3m: f.quote?.r3m ?? null })));
+
+  // Przejscie 2: surowe sygnaly z koniunktura sektora danej spolki.
+  const items: RankItem[] = fetched.map((f) => ({
+    company: f.w.name,
+    ticker: f.w.ticker,
+    market: f.w.market,
+    raw: rawSignals(
+      f.signals,
+      climates.get(f.sector) ?? null,
+      f.quote?.close ?? null,
+      f.sector,
+      gdp[f.w.market] ?? null,
+      { r1m: f.quote?.r1m ?? null, r3m: f.quote?.r3m ?? null },
+    ),
+  }));
   return { ranking: buildRanking(items), usingDb: true };
 }
