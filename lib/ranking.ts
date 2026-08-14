@@ -35,35 +35,41 @@ const SPREAD = 0.9; // skala mapowania Φ (mniejsza => wiekszy rozrzut)
 // prowadzi potencjal (upside od dzisiejszego kursu), prognoza wzrostu, jakosc
 // wynikow i konsensus; momentum tylko POTWIERDZA (nie goni drogich akcji).
 // Ranking rusza sie codziennie, bo dzisiejsza cena wchodzi do potencjalu i momentum.
+// Wagi skoncentrowane wg zasady: najwiecej znaczy to, co (1) ma udokumentowana
+// premie w danych i (2) ma u nas TWARDE, geste dane. Rdzen = Wartosc + Jakosc +
+// Momentum (value/quality/momentum — sprawdzone anomalie), wsparte realnymi
+// wynikami i niskim zadluzeniem. Sygnaly rzadkie/zaszumione (insider, pakiety,
+// prognoza, konsensus analitykow na GPW) to juz tylko KOREKTY, nie fundament.
+// Uszeregowane malejaco — kolejnosc = takze kolejnosc chipow w UI.
 const WEIGHTS: Record<string, number> = {
-  value: 0.1, // wycena: rentownosc zyskow E/P = 1/(C/Z), sektorowo-wzglednie
-  quality: 0.08, // jakosc biznesu: ROE (rentownosc kapitalu), sektorowo-wzglednie
-  potential: 0.1, // upside: mediana ceny docelowej vs kurs BIEZACY (stlumiony)
-  forecast: 0.08, // prognozowana dynamika przychodow (firma+branza+makro)
-  financials: 0.1, // realne wyniki r/r + k/k (jakosc ostatniego wykonania)
-  consensus: 0.09, // wydzwiek rekomendacji (Kupuj/Trzymaj/Sprzedaj)
-  insider: 0.1, // transakcje osob zarzadzajacych (smart money kupuje dzis)
-  short: 0.09, // krotkie pozycje (KNF) — niski short = mniej zakladow na spadek
-  momentum: 0.09, // sila wzgledna kursu (1M/3M) — potwierdzenie rynku, timing wejscia
-  risk: 0.06, // zadluzenie (dlug/kapital) — nizsze = bezpieczniej, sektorowo-wzglednie
-  sector: 0.05, // koniunktura SEKTORA spolki (prior + oddolna sila 3M)
-  holdings: 0.03, // znaczne pakiety (art. 69)
-  dividend: 0.03, // stopa dywidendy (prognoza z dyskontem)
+  value: 0.18, // RDZEN: wycena E/P = 1/(C/Z), sektorowo-wzglednie — twarda taniosc
+  quality: 0.15, // RDZEN: ROE (rentownosc kapitalu), sektorowo-wzglednie — dobry biznes
+  momentum: 0.13, // RDZEN: sila wzgledna 1M/3M — co realnie dziala, rusza sie codziennie
+  financials: 0.1, // wsparcie: realne wyniki r/r + k/k (dowiezione zyski)
+  potential: 0.08, // wsparcie: upside do celu analitykow (na GPW rzadki/przestarzaly)
+  risk: 0.07, // wsparcie: niskie zadluzenie (dlug/kapital), sektorowo-wzglednie
+  consensus: 0.06, // korekta: wydzwiek rekomendacji (Kupuj/Trzymaj/Sprzedaj)
+  insider: 0.05, // korekta: transakcje osob zarzadzajacych (smart money)
+  short: 0.05, // korekta: krotkie pozycje KNF (niski short = mniej zakladow na spadek)
+  sector: 0.04, // korekta: koniunktura sektora (prior + oddolna sila 3M)
+  forecast: 0.03, // korekta: nasza heurystyczna prognoza przychodow (slaba)
+  dividend: 0.03, // korekta: stopa dywidendy
+  holdings: 0.03, // korekta: znaczne pakiety (art. 69)
 };
 const LABELS: Record<string, string> = {
   value: "Wycena",
   quality: "Jakość (ROE)",
-  potential: "Potencjał",
-  forecast: "Prognoza wzrostu",
+  momentum: "Momentum",
   financials: "Wyniki r/r",
+  potential: "Potencjał",
+  risk: "Zadłużenie",
   consensus: "Rekomendacje",
   insider: "Insiderzy",
   short: "Krótkie pozycje",
-  momentum: "Momentum",
-  risk: "Zadłużenie",
   sector: "Koniunktura sektora",
-  holdings: "Znaczne pakiety",
+  forecast: "Prognoza wzrostu",
   dividend: "Dywidenda",
+  holdings: "Znaczne pakiety",
 };
 const KEYS = Object.keys(WEIGHTS);
 
