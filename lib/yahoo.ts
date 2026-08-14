@@ -160,6 +160,63 @@ async function getCrumb(): Promise<{ crumb: string; cookie: string } | null> {
   }
 }
 
+/**
+ * Jakosc i ryzyko z Yahoo quoteSummary: ROE, zadluzenie (D/E), marza netto, PEG.
+ * Per symbol (endpoint nie laczy wielu naraz), z tym samym crumbem co wskazniki.
+ */
+export interface QualityRisk {
+  roe: number | null; // rentownosc kapitalu wlasnego (ulamek)
+  debtToEquity: number | null; // dlug/kapital wlasny (%, Yahoo), wyzej = wieksze ryzyko
+  profitMargin: number | null; // marza netto (ulamek)
+  peg: number | null; // C/Z / wzrost — nizej = taniej wzgledem wzrostu
+}
+
+export async function fetchQualityRisk(symbol: string): Promise<QualityRisk> {
+  const empty: QualityRisk = { roe: null, debtToEquity: null, profitMargin: null, peg: null };
+  const cc = await getCrumb();
+  if (!cc) return empty;
+  const url =
+    `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}` +
+    `?modules=financialData,defaultKeyStatistics&crumb=${encodeURIComponent(cc.crumb)}`;
+  try {
+    const res = await fetch(url, {
+      cache: "no-store",
+      headers: { "User-Agent": BROWSER_UA, Cookie: cc.cookie, Accept: "application/json" },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (res.status === 401) {
+      crumbCache = null;
+      return empty;
+    }
+    if (!res.ok) return empty;
+    const json = (await res.json()) as {
+      quoteSummary?: { result?: Array<Record<string, Record<string, unknown>>> };
+    };
+    const r = json.quoteSummary?.result?.[0];
+    if (!r) return empty;
+    const fd = r.financialData ?? {};
+    const ks = r.defaultKeyStatistics ?? {};
+    // Pola bywaja liczba albo obiektem {raw:number} — obsluz oba.
+    const raw = (o: Record<string, unknown>, k: string): number | null => {
+      const v = o?.[k];
+      if (typeof v === "number") return Number.isFinite(v) ? v : null;
+      if (v && typeof v === "object" && typeof (v as { raw?: unknown }).raw === "number") {
+        const n = (v as { raw: number }).raw;
+        return Number.isFinite(n) ? n : null;
+      }
+      return null;
+    };
+    return {
+      roe: raw(fd, "returnOnEquity"),
+      debtToEquity: raw(fd, "debtToEquity"),
+      profitMargin: raw(fd, "profitMargins"),
+      peg: raw(ks, "pegRatio"),
+    };
+  } catch {
+    return empty;
+  }
+}
+
 function chunk<T>(xs: T[], n: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < xs.length; i += n) out.push(xs.slice(i, i + n));

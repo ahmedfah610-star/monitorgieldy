@@ -160,8 +160,9 @@ export default function RankingPage() {
             Odpowiada na pytanie: <strong>które spółki są najlepsze do kupna na dziś</strong> —
             najwyższa oczekiwana stopa zwrotu od <strong>bieżącej ceny</strong>, przy zdrowych
             fundamentach i sygnałach smart money. Obejmuje automatycznie cały katalog GPW (WIG20 +
-            mWIG40) plus Twoją watchlistę. Prowadzą: wycena (C/Z, C/WK), potencjał do celu analityków,
-            prognoza wzrostu, jakość wyników i konsensus; momentum (1M/3M) tylko potwierdza. Złożony wskaźnik 0-100
+            mWIG40) plus Twoją watchlistę. Prowadzą: wycena (C/Z, C/WK — względem sektora), jakość
+            (ROE), potencjał, prognoza i wyniki; momentum potwierdza, zadłużenie i płynność korygują
+            ryzyko (małe spółki ciągnięte ku neutralnemu). Złożony wskaźnik 0-100
             (50 = mediana rynku): każdy sygnał standaryzowany <strong>względem grupy porównawczej</strong>
             (odporny z-score, winsoryzacja) i mapowany dystrybuantą normalną. Zmienia się codziennie,
             bo dzisiejsza cena wchodzi do potencjału i momentum. Chip = odchylenie w <strong>σ</strong>

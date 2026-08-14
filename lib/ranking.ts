@@ -36,27 +36,31 @@ const SPREAD = 0.9; // skala mapowania Φ (mniejsza => wiekszy rozrzut)
 // wynikow i konsensus; momentum tylko POTWIERDZA (nie goni drogich akcji).
 // Ranking rusza sie codziennie, bo dzisiejsza cena wchodzi do potencjalu i momentum.
 const WEIGHTS: Record<string, number> = {
-  value: 0.1, // wycena: rentownosc zyskow E/P = 1/(C/Z) — twarda taniosc vs cena biezaca
-  potential: 0.12, // upside: mediana ceny docelowej vs kurs BIEZACY (stlumiony)
-  forecast: 0.1, // prognozowana dynamika przychodow (firma+branza+makro)
-  consensus: 0.1, // wydzwiek rekomendacji (Kupuj/Trzymaj/Sprzedaj)
-  financials: 0.12, // realne wyniki r/r + k/k (jakosc ostatniego wykonania)
-  insider: 0.11, // transakcje osob zarzadzajacych (smart money kupuje dzis)
-  short: 0.1, // krotkie pozycje (KNF) — niski short = mniej zakladow na spadek
-  momentum: 0.1, // sila wzgledna kursu (1M/3M) — potwierdzenie rynku, timing wejscia
-  sector: 0.06, // koniunktura SEKTORA spolki (prior + oddolna sila 3M) — roznicuje po branzy
-  holdings: 0.05, // znaczne pakiety (art. 69)
-  dividend: 0.04, // stopa dywidendy (prognoza z dyskontem)
+  value: 0.1, // wycena: rentownosc zyskow E/P = 1/(C/Z), sektorowo-wzglednie
+  quality: 0.08, // jakosc biznesu: ROE (rentownosc kapitalu), sektorowo-wzglednie
+  potential: 0.1, // upside: mediana ceny docelowej vs kurs BIEZACY (stlumiony)
+  forecast: 0.08, // prognozowana dynamika przychodow (firma+branza+makro)
+  financials: 0.1, // realne wyniki r/r + k/k (jakosc ostatniego wykonania)
+  consensus: 0.09, // wydzwiek rekomendacji (Kupuj/Trzymaj/Sprzedaj)
+  insider: 0.1, // transakcje osob zarzadzajacych (smart money kupuje dzis)
+  short: 0.09, // krotkie pozycje (KNF) — niski short = mniej zakladow na spadek
+  momentum: 0.09, // sila wzgledna kursu (1M/3M) — potwierdzenie rynku, timing wejscia
+  risk: 0.06, // zadluzenie (dlug/kapital) — nizsze = bezpieczniej, sektorowo-wzglednie
+  sector: 0.05, // koniunktura SEKTORA spolki (prior + oddolna sila 3M)
+  holdings: 0.03, // znaczne pakiety (art. 69)
+  dividend: 0.03, // stopa dywidendy (prognoza z dyskontem)
 };
 const LABELS: Record<string, string> = {
   value: "Wycena",
+  quality: "Jakość (ROE)",
   potential: "Potencjał",
   forecast: "Prognoza wzrostu",
-  consensus: "Rekomendacje",
   financials: "Wyniki r/r",
+  consensus: "Rekomendacje",
   insider: "Insiderzy",
   short: "Krótkie pozycje",
   momentum: "Momentum",
+  risk: "Zadłużenie",
   sector: "Koniunktura sektora",
   holdings: "Znaczne pakiety",
   dividend: "Dywidenda",
@@ -113,22 +117,37 @@ function rawSignals(
   gdp: number | null,
   mom: { r1m: number | null; r3m: number | null },
   fin: { pe: number | null; pbv: number | null; marketCap: number | null },
+  qr: { roe: number | null; debtToEquity: number | null; profitMargin: number | null; peg: number | null },
 ): Record<string, Raw> {
   const out: Record<string, Raw> = {};
   let revGrowth: number | null = null; // dynamika przychodow firmy — do prognozy
 
   // Wycena: rentownosc zyskow E/P = 1/(C/Z). Wyzej = taniej wzgledem zyskow = lepiej.
-  // Strata (C/Z <= 0) => brak sygnalu (nie nagradzamy sztucznie). C/WK + kap. dla kontekstu.
+  // Strata (C/Z <= 0) => brak sygnalu (nie nagradzamy sztucznie). C/WK + PEG + kap. dla kontekstu.
   // Standaryzowane WZGLEDEM SEKTORA w buildRanking (banki vs tech maja inny poziom C/Z).
   const capStr = fin.marketCap !== null && fin.marketCap > 0 ? ` · kap. ${(fin.marketCap / 1e9).toFixed(1)} mld` : "";
+  const pegStr = qr.peg !== null && qr.peg > 0 ? ` · PEG ${qr.peg.toFixed(1)}` : "";
   if (fin.pe !== null && fin.pe > 0) {
     out.value = {
       value: 1 / fin.pe,
-      detail: `C/Z ${fin.pe.toFixed(1)}${fin.pbv !== null && fin.pbv > 0 ? ` · C/WK ${fin.pbv.toFixed(1)}` : ""}${capStr}`,
+      detail: `C/Z ${fin.pe.toFixed(1)}${fin.pbv !== null && fin.pbv > 0 ? ` · C/WK ${fin.pbv.toFixed(1)}` : ""}${pegStr}${capStr}`,
     };
   } else {
     out.value = { value: null, detail: (fin.pe !== null && fin.pe <= 0 ? "strata (C/Z ujemne)" : "brak") + capStr };
   }
+
+  // Jakosc: ROE (rentownosc kapitalu wlasnego). Wyzej = lepszy biznes. Sektorowo-wzglednie.
+  // Marza netto pokazywana dla kontekstu. Odroznia "tania i dobra" od "taniej i slabej".
+  if (qr.roe !== null) {
+    const mStr = qr.profitMargin !== null ? ` · marża ${(qr.profitMargin * 100).toFixed(0)}%` : "";
+    out.quality = { value: qr.roe, detail: `ROE ${(qr.roe * 100).toFixed(0)}%${mStr}` };
+  } else out.quality = { value: null, detail: "brak" };
+
+  // Ryzyko bilansu: zadluzenie (dlug/kapital). NIZSZE = bezpieczniej, wiec value = -D/E.
+  // Sektorowo-wzglednie (deweloperzy/energia strukturalnie wyzej niz tech). Banki => brak.
+  if (qr.debtToEquity !== null) {
+    out.risk = { value: -qr.debtToEquity, detail: `D/E ${qr.debtToEquity.toFixed(0)}%` };
+  } else out.risk = { value: null, detail: "brak" };
 
   // Momentum: sila wzgledna kursu = blend zwrotu 1M i 3M (realne notowania, zmienia
   // sie codziennie). Wyzej = lepiej. Wymaga chociaz jednego okna historii.
@@ -281,7 +300,18 @@ export interface RankItem {
   ticker: string;
   market: Market;
   sector?: string;
+  marketCap?: number | null;
   raw: Record<string, Raw>;
+}
+
+// Filtr plynnosci: bardzo male spolki sa nieplynne i zaszumione (pulapki wartosci),
+// wiec ich wynik ciagniemy ku neutralnemu — mnoznik od kapitalizacji, z podloga.
+// Pelne zaufanie od ~2 mld (lokalnej waluty); brak danych => brak kary (1.0).
+const LIQ_FULL = 2e9;
+const LIQ_FLOOR = 0.65;
+function liquidityMult(marketCap: number | null | undefined): number {
+  if (marketCap === null || marketCap === undefined || !(marketCap > 0)) return 1;
+  return clamp(marketCap / LIQ_FULL, LIQ_FLOOR, 1);
 }
 
 /** Odporne statystyki (mediana + skala z MAD, fallback na odch. std). */
@@ -300,7 +330,7 @@ function robustStat(vals: number[]): { med: number; scale: number } | null {
 // ~30-50). Standaryzacja globalna karalaby tech i nagradzala banki bez zwiazku z
 // realnym niedowartosciowaniem. Dlatego "value" standaryzujemy WZGLEDEM SEKTORA
 // (gdy sektor ma >=3 spolki z danymi), inaczej globalnie.
-const SECTOR_RELATIVE = new Set(["value"]);
+const SECTOR_RELATIVE = new Set(["value", "quality", "risk"]);
 const MIN_SECTOR_N = 3;
 
 /** Buduje ranking z surowych sygnalow: standaryzacja przekrojowa + agregacja. */
@@ -356,7 +386,8 @@ export function buildRanking(items: RankItem[]): RankingEntry[] {
     const sumAllW = components.reduce((a, c) => a + c.weight, 0);
     const composite = sumActiveW > 0 ? active.reduce((a, c) => a + c.weight * (c.score as number), 0) / sumActiveW : 0;
     const confidence = sumAllW > 0 ? sumActiveW / sumAllW : 0;
-    const shrunk = composite * confidence;
+    // Redukcja wg pewnosci (pokrycie) ORAZ plynnosci (male spolki mniej wiarygodne).
+    const shrunk = composite * confidence * liquidityMult(it.marketCap);
     return {
       ticker: it.ticker,
       company: it.company,
@@ -405,6 +436,7 @@ export async function computeRankings(): Promise<{ ranking: RankingEntry[]; usin
     ticker: f.w.ticker,
     market: f.w.market,
     sector: f.sector,
+    marketCap: f.quote?.marketCap ?? null,
     raw: rawSignals(
       f.signals,
       climates.get(f.sector) ?? null,
@@ -413,6 +445,12 @@ export async function computeRankings(): Promise<{ ranking: RankingEntry[]; usin
       gdp[f.w.market] ?? null,
       { r1m: f.quote?.r1m ?? null, r3m: f.quote?.r3m ?? null },
       { pe: f.quote?.pe ?? null, pbv: f.quote?.pbv ?? null, marketCap: f.quote?.marketCap ?? null },
+      {
+        roe: f.quote?.roe ?? null,
+        debtToEquity: f.quote?.debtToEquity ?? null,
+        profitMargin: f.quote?.profitMargin ?? null,
+        peg: f.quote?.peg ?? null,
+      },
     ),
   }));
   return { ranking: buildRanking(items), usingDb: true };

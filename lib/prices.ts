@@ -1,6 +1,6 @@
 import { hasDb, ensurePriceSchema, upsertPriceSnapshots, type PriceSnapshot } from "./db";
 import { getUniverse, mapLimit } from "./universe";
-import { fetchQuote, fetchFundamentals, toYahooSymbol } from "./yahoo";
+import { fetchQuote, fetchFundamentals, fetchQualityRisk, toYahooSymbol } from "./yahoo";
 
 /**
  * Cache notowan dla rankingu (Faza 19).
@@ -27,11 +27,13 @@ export async function refreshPrices(): Promise<PricesRefreshSummary> {
   const symbolOf = (w: (typeof universe)[number]) => toYahooSymbol(w.ticker, w.market);
 
   // Wskazniki wyceny (C/Z, C/WK, kapitalizacja, EPS TTM) — jednym zapytaniem
-  // wsadowym dla calego uniwersum. Kurs+momentum lecimy per spolka (historia).
+  // wsadowym dla calego uniwersum. Kurs+momentum ORAZ jakosc/ryzyko (ROE, D/E,
+  // marza, PEG) lecimy per spolka (historia + quoteSummary sa per-symbol).
   const [settled, funda] = await Promise.all([
-    mapLimit(universe, 8, async (w) => {
-      const q = await fetchQuote(symbolOf(w));
-      return { w, q };
+    mapLimit(universe, 6, async (w) => {
+      const sym = symbolOf(w);
+      const [q, qr] = await Promise.all([fetchQuote(sym), fetchQualityRisk(sym)]);
+      return { w, q, qr };
     }),
     fetchFundamentals(universe.map(symbolOf)).catch(() => new Map()),
   ]);
@@ -42,7 +44,7 @@ export async function refreshPrices(): Promise<PricesRefreshSummary> {
       errors.push(`${universe[i].ticker}: ${String(r.reason).slice(0, 100)}`);
       return;
     }
-    const { w, q } = r.value;
+    const { w, q, qr } = r.value;
     const f = funda.get(symbolOf(w));
     rows.push({
       ticker: w.ticker,
@@ -56,6 +58,10 @@ export async function refreshPrices(): Promise<PricesRefreshSummary> {
       pbv: f?.pbv ?? null,
       marketCap: f?.marketCap ?? null,
       epsTtm: f?.epsTtm ?? null,
+      roe: qr.roe,
+      debtToEquity: qr.debtToEquity,
+      profitMargin: qr.profitMargin,
+      peg: qr.peg,
     });
   });
 

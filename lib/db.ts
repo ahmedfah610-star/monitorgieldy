@@ -64,6 +64,11 @@ export async function ensurePriceSchema(): Promise<void> {
   await sql`ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS pbv NUMERIC;`;
   await sql`ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS market_cap NUMERIC;`;
   await sql`ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS eps_ttm NUMERIC;`;
+  // Jakosc i ryzyko (Faza 21): ROE, dlug/kapital, marza netto, PEG (quoteSummary).
+  await sql`ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS roe NUMERIC;`;
+  await sql`ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS debt_to_equity NUMERIC;`;
+  await sql`ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS profit_margin NUMERIC;`;
+  await sql`ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS peg NUMERIC;`;
 }
 
 export async function initSchema(): Promise<void> {
@@ -325,6 +330,10 @@ export interface PriceSnapshot {
   pbv: number | null;
   marketCap: number | null;
   epsTtm: number | null;
+  roe: number | null;
+  debtToEquity: number | null;
+  profitMargin: number | null;
+  peg: number | null;
 }
 
 /** Zapisuje notowania dnia (upsert po ticker+market+dzis). Zwraca liczbe wierszy. */
@@ -334,14 +343,17 @@ export async function upsertPriceSnapshots(rows: PriceSnapshot[]): Promise<{ ins
     if (r.close === null) continue; // bez ceny nie ma czego cache'owac
     await sql`
       INSERT INTO price_snapshots
-        (ticker, market, snap_date, close, change_pct, r1m, r3m, currency, pe, pbv, market_cap, eps_ttm)
+        (ticker, market, snap_date, close, change_pct, r1m, r3m, currency, pe, pbv, market_cap, eps_ttm,
+         roe, debt_to_equity, profit_margin, peg)
       VALUES (${r.ticker}, ${r.market}, CURRENT_DATE, ${r.close}, ${r.changePct}, ${r.r1m}, ${r.r3m},
-        ${r.currency}, ${r.pe}, ${r.pbv}, ${r.marketCap}, ${r.epsTtm})
+        ${r.currency}, ${r.pe}, ${r.pbv}, ${r.marketCap}, ${r.epsTtm},
+        ${r.roe}, ${r.debtToEquity}, ${r.profitMargin}, ${r.peg})
       ON CONFLICT (ticker, market, snap_date)
       DO UPDATE SET close = EXCLUDED.close, change_pct = EXCLUDED.change_pct,
         r1m = EXCLUDED.r1m, r3m = EXCLUDED.r3m, currency = EXCLUDED.currency,
         pe = EXCLUDED.pe, pbv = EXCLUDED.pbv, market_cap = EXCLUDED.market_cap,
-        eps_ttm = EXCLUDED.eps_ttm, created_at = now();
+        eps_ttm = EXCLUDED.eps_ttm, roe = EXCLUDED.roe, debt_to_equity = EXCLUDED.debt_to_equity,
+        profit_margin = EXCLUDED.profit_margin, peg = EXCLUDED.peg, created_at = now();
     `;
     inserted += 1;
   }
@@ -355,7 +367,9 @@ export async function getLatestPrices(): Promise<Map<string, PriceSnapshot>> {
        ticker, market, close::float8 AS "close", change_pct::float8 AS "changePct",
        r1m::float8 AS "r1m", r3m::float8 AS "r3m", currency,
        pe::float8 AS "pe", pbv::float8 AS "pbv", market_cap::float8 AS "marketCap",
-       eps_ttm::float8 AS "epsTtm", to_char(snap_date,'YYYY-MM-DD') AS "snapDate"
+       eps_ttm::float8 AS "epsTtm", roe::float8 AS "roe", debt_to_equity::float8 AS "debtToEquity",
+       profit_margin::float8 AS "profitMargin", peg::float8 AS "peg",
+       to_char(snap_date,'YYYY-MM-DD') AS "snapDate"
      FROM price_snapshots
      ORDER BY ticker, market, snap_date DESC;`,
   );
