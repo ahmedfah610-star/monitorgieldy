@@ -6,8 +6,8 @@ import { NavBar } from "@/components/NavBar";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Market Dashboard — GPW · USA",
-  description: "Osobisty dashboard rynkowy: notowania, rekomendacje, insiderzy, shorty, ranking i makro.",
+  title: "MarketScope — GPW · USA · Makro",
+  description: "Profesjonalny dashboard rynkowy: notowania, ranking atrakcyjności, rekomendacje, insiderzy, shorty i makro.",
 };
 
 export default function RootLayout({
@@ -16,33 +16,34 @@ export default function RootLayout({
   return (
     <html lang="pl" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body>
-        <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-[#09090b]/80 backdrop-blur-md">
+        <header className="sticky top-0 z-30 border-b border-white/[0.07] bg-[#08090c]/85 backdrop-blur-xl">
           <div className="mx-auto max-w-6xl px-4">
             <div className="flex items-center justify-between gap-4 py-3">
               <Link href="/" className="group flex items-center gap-2.5">
-                <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/25 ring-1 ring-white/10">
+                <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/30 ring-1 ring-white/10 transition group-hover:shadow-blue-500/50">
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M3 17l5-5 4 3 7-8" />
                     <path d="M16 4h4v4" />
                   </svg>
                 </span>
                 <span className="flex flex-col leading-none">
-                  <span className="text-[15px] font-semibold tracking-tight text-neutral-100">
+                  <span className="text-[15px] font-semibold tracking-tight text-neutral-50">
                     Market<span className="text-blue-400">Scope</span>
                   </span>
-                  <span className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-neutral-500">
-                    GPW · USA · makro
+                  <span className="mt-1 text-[10px] font-medium uppercase tracking-[0.16em] text-neutral-500">
+                    GPW · USA · Makro
                   </span>
                 </span>
               </Link>
-              <a
-                href="https://www.gpw.pl"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hidden rounded-full border border-white/[0.08] px-3 py-1.5 text-xs text-neutral-400 transition hover:border-white/20 hover:text-neutral-200 sm:block"
-              >
-                Narzędzie informacyjne
-              </a>
+              <div className="hidden items-center gap-2 sm:flex">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-300">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  </span>
+                  Dane na żywo
+                </span>
+              </div>
             </div>
             <NavBar />
           </div>
@@ -51,10 +52,13 @@ export default function RootLayout({
         <div className="mx-auto max-w-6xl px-4 py-8">{children}</div>
 
         <footer className="mx-auto mt-10 max-w-6xl px-4 pb-10">
-          <div className="border-t border-white/[0.06] pt-5 text-xs text-neutral-600">
-            <span className="text-neutral-500">MarketScope</span> — osobisty dashboard rynkowy.
-            Dane: GPW/bankier, KNF, World Bank, NBP, Yahoo Finance. Narzędzie informacyjne, nie
-            doradztwo inwestycyjne.
+          <div className="flex flex-col gap-1 border-t border-white/[0.06] pt-5 text-xs text-neutral-600">
+            <span>
+              <span className="font-semibold text-neutral-400">MarketScope</span> — profesjonalny dashboard rynkowy.
+            </span>
+            <span>
+              Dane: GPW/bankier, KNF, World Bank, NBP, Yahoo Finance. Narzędzie informacyjne, nie doradztwo inwestycyjne.
+            </span>
           </div>
         </footer>
       </body>

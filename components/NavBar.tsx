@@ -22,7 +22,7 @@ const LINKS: { href: string; label: string }[] = [
 export function NavBar() {
   const path = usePathname();
   return (
-    <nav className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <nav className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {LINKS.map((l) => {
         const active = l.href === "/" ? path === "/" : path.startsWith(l.href);
         return (
@@ -30,13 +30,16 @@ export function NavBar() {
             key={l.href}
             href={l.href}
             aria-current={active ? "page" : undefined}
-            className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm transition ${
+            className={`navpill relative ${
               active
-                ? "bg-blue-500/10 text-blue-300 ring-1 ring-inset ring-blue-500/25"
-                : "text-neutral-400 hover:bg-white/5 hover:text-neutral-100"
+                ? "bg-white/[0.06] text-white ring-1 ring-inset ring-white/10"
+                : "text-neutral-400 hover:bg-white/[0.04] hover:text-neutral-100"
             }`}
           >
             {l.label}
+            {active && (
+              <span className="absolute inset-x-3 -bottom-[9px] h-0.5 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500" />
+            )}
           </Link>
         );
       })}

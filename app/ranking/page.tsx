@@ -16,37 +16,71 @@ function scoreColor(score: number): string {
   return "text-neutral-300";
 }
 
+/** Okrągły wskaźnik wyniku 0-100 (jak gauge na platformie tradingowej). */
+function ScoreGauge({ score }: { score: number }) {
+  const r = 22;
+  const circ = 2 * Math.PI * r;
+  const stroke =
+    score >= 55 ? "rgb(16 185 129)" : score <= 45 ? "rgb(244 63 94)" : "rgb(148 163 184)";
+  return (
+    <div className="relative grid h-14 w-14 shrink-0 place-items-center">
+      <svg viewBox="0 0 52 52" className="h-14 w-14 -rotate-90">
+        <circle cx="26" cy="26" r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="4" />
+        <circle
+          cx="26" cy="26" r={r} fill="none" stroke={stroke} strokeWidth="4" strokeLinecap="round"
+          strokeDasharray={circ} strokeDashoffset={circ * (1 - score / 100)}
+          style={{ transition: "stroke-dashoffset .6s ease" }}
+        />
+      </svg>
+      <span className={`absolute text-base font-bold tabular-nums ${scoreColor(score)}`}>{score}</span>
+    </div>
+  );
+}
+
 function Chip({ c }: { c: RankingComponent }) {
   if (c.score === null)
     return (
       <span
         title={`${c.label}: brak danych`}
-        className="rounded border border-neutral-800 px-1.5 py-0.5 text-[11px] text-neutral-600"
+        className="inline-flex items-center rounded-md border border-white/[0.05] px-1.5 py-0.5 text-[11px] text-neutral-600"
       >
         {c.label} —
       </span>
     );
   const pos = c.score > 0.05;
   const neg = c.score < -0.05;
-  const cls = pos
-    ? "border-emerald-900 bg-emerald-950/40 text-emerald-300"
-    : neg
-      ? "border-red-900 bg-red-950/40 text-red-300"
-      : "border-neutral-700 bg-neutral-900 text-neutral-400";
+  const cls = pos ? "badge-pos" : neg ? "badge-neg" : "badge-neutral";
   const sign = pos ? "▲" : neg ? "▼" : "–";
   return (
-    <span title={`${c.label}: ${c.detail} (waga ${Math.round(c.weight * 100)}%)`} className={`rounded border px-1.5 py-0.5 text-[11px] ${cls}`}>
-      {sign} {c.label}: <span className="text-neutral-300">{c.detail}</span>
+    <span title={`${c.label}: ${c.detail} (waga ${Math.round(c.weight * 100)}%)`} className={`badge ${cls}`}>
+      <span className="opacity-70">{sign}</span> {c.label}:{" "}
+      <span className="font-normal opacity-90">{c.detail}</span>
     </span>
   );
 }
 
-function Bar({ score }: { score: number }) {
+function Stat({ label, value, accent }: { label: string; value: string; accent?: number }) {
+  const color = accent != null ? scoreColor(accent) : "text-neutral-100";
   return (
-    <div className="h-1.5 w-full overflow-hidden rounded bg-neutral-800">
+    <div className="min-w-[120px] flex-1 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+      <div className="text-[10px] font-medium uppercase tracking-wider text-neutral-500">{label}</div>
+      <div className={`mt-0.5 truncate text-sm font-semibold tabular-nums ${color}`}>{value}</div>
+    </div>
+  );
+}
+
+function Bar({ score }: { score: number }) {
+  const grad =
+    score >= 55
+      ? "from-emerald-500 to-emerald-400"
+      : score <= 45
+        ? "from-rose-500 to-rose-400"
+        : "from-neutral-500 to-neutral-400";
+  return (
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
       <div
-        className={`h-full rounded ${score >= 55 ? "bg-emerald-500" : score <= 45 ? "bg-red-500" : "bg-neutral-500"}`}
-        style={{ width: `${score}%` }}
+        className={`h-full rounded-full bg-gradient-to-r ${grad}`}
+        style={{ width: `${score}%`, transition: "width .6s ease" }}
       />
     </div>
   );
@@ -151,50 +185,59 @@ export default function RankingPage() {
     load();
   }, [load]);
 
+  const topScore = view?.ranking?.[0]?.score;
+  const avgScore = view?.ranking?.length
+    ? Math.round(view.ranking.reduce((a, e) => a + e.score, 0) / view.ranking.length)
+    : null;
+
   return (
     <main className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Ranking atrakcyjności</h1>
-          <p className="max-w-2xl text-xs text-neutral-500">
-            Odpowiada na pytanie: <strong>które spółki są najlepsze do kupna na dziś</strong> —
-            najwyższa oczekiwana stopa zwrotu od <strong>bieżącej ceny</strong>, przy zdrowych
-            fundamentach i sygnałach smart money. Obejmuje automatycznie cały katalog GPW (WIG20 +
-            mWIG40) plus Twoją watchlistę. <strong>Rdzeń (≈46% wagi): Wycena + Jakość (ROE) +
-            Momentum</strong> — na te patrz najbardziej. Wycena to kompozyt <strong>C/Z + EV/EBITDA
-            + C/WK</strong> (EV/EBITDA łapie tanie, zadłużone spółki, których samo C/Z nie widzi),
-            liczony względem sektora. Wspierają wyniki r/r, potencjał i niskie zadłużenie; reszta to
-            korekty. Filtr płynności po <strong>realnym obrocie</strong>, dyskonto dla spółek
-            kontrolowanych przez <strong>Skarb Państwa</strong> (ryzyko polityczne). Złożony wskaźnik 0-100
-            (50 = mediana rynku): każdy sygnał standaryzowany <strong>względem grupy porównawczej</strong>
-            (odporny z-score, winsoryzacja) i mapowany dystrybuantą normalną. Zmienia się codziennie,
-            bo dzisiejsza cena wchodzi do potencjału i momentum. Chip = odchylenie w <strong>σ</strong>
-            od mediany. Notowania (kurs + momentum) są cache'owane w bazie przy odświeżaniu, więc
-            ranking ładuje się natychmiast. Kliknij „Odśwież dane", aby dociągnąć sygnały.
-          </p>
+      <div className="card relative overflow-hidden p-5">
+        <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-blue-500/10 blur-3xl" />
+        <div className="relative flex flex-wrap items-start justify-between gap-4">
+          <div className="max-w-2xl">
+            <p className="eyebrow">Screener · najlepsze do kupna na dziś</p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-50">
+              Ranking atrakcyjności
+            </h1>
+            <p className="mt-2 text-sm leading-relaxed text-neutral-400">
+              Najwyższa oczekiwana stopa zwrotu od <strong className="text-neutral-200">bieżącej
+              ceny</strong>, przy zdrowych fundamentach i sygnałach smart money. Rdzeń wskaźnika:{" "}
+              <strong className="text-neutral-200">Wycena (C/Z + EV/EBITDA + C/WK) · Jakość (ROE) ·
+              Momentum</strong>, wszystko względem sektora. Cały katalog GPW automatycznie.
+            </p>
+          </div>
+          <div className="flex flex-col items-stretch gap-2">
+            <button
+              onClick={refreshData}
+              disabled={refreshing || loading}
+              title="Pobiera wszystkie źródła dla całego katalogu (tylko nowe wpisy)"
+              className="btn btn-primary"
+            >
+              {refreshing ? "Pobieram dane…" : "↻ Odśwież dane"}
+            </button>
+            <button
+              onClick={load}
+              disabled={loading || refreshing}
+              title="Przelicza ranking na już zebranych danych (bez pobierania)"
+              className="btn btn-ghost"
+            >
+              {loading ? "Liczę…" : "Przelicz"}
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={refreshData}
-            disabled={refreshing || loading}
-            title="Pobiera wszystkie źródła dla całej watchlisty naraz (tylko nowe wpisy)"
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {refreshing ? "Pobieram dane…" : "Odśwież dane"}
-          </button>
-          <button
-            onClick={load}
-            disabled={loading || refreshing}
-            title="Przelicza ranking na już zebranych danych (bez pobierania)"
-            className="rounded-md border border-neutral-700 px-3 py-2 text-sm text-neutral-300 transition hover:border-neutral-500 hover:text-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {loading ? "Liczę…" : "Przelicz"}
-          </button>
-        </div>
+        {view?.ranking?.length ? (
+          <div className="relative mt-4 flex flex-wrap gap-2 border-t border-white/[0.06] pt-4">
+            <Stat label="Spółek" value={String(view.ranking.length)} />
+            <Stat label="Najwyższy wynik" value={topScore != null ? String(topScore) : "—"} accent={topScore} />
+            <Stat label="Mediana katalogu" value={avgScore != null ? String(avgScore) : "—"} />
+            <Stat label="Lider" value={view.ranking[0]?.company ?? "—"} />
+          </div>
+        ) : null}
       </div>
 
       {progress.length > 0 && (
-        <div className="rounded-md border border-neutral-800 bg-neutral-900/50 px-4 py-3">
+        <div className="card px-4 py-3">
           <p className="mb-2 text-xs text-neutral-400">
             {refreshing
               ? "Pobieram dane ze źródeł (każde osobno, by nie ucięło na limicie czasu)…"
@@ -222,14 +265,14 @@ export default function RankingPage() {
       )}
 
       {view && !view.usingDb && (
-        <div className="rounded-md border border-amber-900 bg-amber-950/40 px-4 py-3 text-sm text-amber-300">
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
           Wymaga bazy (Vercel Postgres). Ustaw <code>POSTGRES_URL</code> i uruchom <code>/api/init-db</code>,
           potem odśwież źródła, aby ranking miał z czego liczyć.
         </div>
       )}
 
       {error && (
-        <div className="rounded-md border border-red-900 bg-red-950/50 px-4 py-3 text-sm text-red-300">
+        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
           Błąd: {error}
         </div>
       )}
@@ -244,28 +287,30 @@ export default function RankingPage() {
         </p>
       )}
 
-      <ol className="space-y-3">
+      <ol className="space-y-2.5">
         {view?.ranking.map((e, i) => (
-          <li key={e.ticker} className="rounded-lg border border-neutral-800 p-3">
-            <div className="flex items-center gap-3">
-              <span className="w-7 shrink-0 text-center text-lg font-semibold text-neutral-500">{i + 1}</span>
+          <li key={e.ticker} className="card card-hover p-3.5 sm:p-4">
+            <div className="flex items-start gap-3 sm:gap-4">
+              <div className="flex shrink-0 flex-col items-center gap-1.5">
+                <span
+                  className={`grid h-6 w-6 place-items-center rounded-md text-xs font-bold tabular-nums ${
+                    i < 3 ? "bg-blue-500/15 text-blue-300 ring-1 ring-inset ring-blue-500/25" : "text-neutral-500"
+                  }`}
+                >
+                  {i + 1}
+                </span>
+                <ScoreGauge score={e.score} />
+              </div>
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="truncate text-sm font-semibold text-neutral-100">
-                    {e.company} <span className="text-neutral-600">({e.ticker})</span>
-                    <span className="ml-1 text-[10px] text-neutral-600">{e.market}</span>
-                  </span>
-                  <span className="flex items-baseline gap-2">
-                    <span className={`text-xl font-bold tabular-nums ${scoreColor(e.score)}`}>{e.score}</span>
-                    <span className="text-xs text-neutral-600">/100</span>
-                    {e.coverage < 0.5 && (
-                      <span title="Mało danych — wynik oparty na niewielu sygnałach" className="text-[10px] text-amber-500">
-                        skąpe dane
-                      </span>
-                    )}
-                  </span>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <span className="truncate text-[15px] font-semibold text-neutral-50">{e.company}</span>
+                    <span className="ml-1.5 font-mono text-xs uppercase text-neutral-500">{e.ticker}</span>
+                    <span className="ml-1 rounded bg-white/[0.05] px-1 py-px text-[9px] font-medium text-neutral-400">{e.market}</span>
+                  </div>
+                  {e.coverage < 0.5 && <span className="badge badge-warn">skąpe dane</span>}
                 </div>
-                <div className="my-1.5">
+                <div className="my-2">
                   <Bar score={e.score} />
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -273,24 +318,26 @@ export default function RankingPage() {
                     <Chip key={c.key} c={c} />
                   ))}
                 </div>
-                <div className="mt-2 rounded-md border border-neutral-800/70 bg-neutral-900/40 px-2.5 py-2 text-xs">
-                  <div className="font-medium text-neutral-200">
-                    <span className="text-neutral-500">Wniosek: </span>
+                <div className="mt-2.5 surface-2 px-3 py-2 text-xs">
+                  <div className="font-semibold text-neutral-100">
+                    <span className="mr-1 rounded bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-blue-300">
+                      Wniosek
+                    </span>
                     {e.verdict}
                   </div>
                   {e.pros.length > 0 && (
-                    <div className="mt-1 text-emerald-300/90">
-                      <span className="text-neutral-500">Za: </span>
+                    <div className="mt-1.5 text-emerald-300/90">
+                      <span className="text-neutral-500">▲ Za: </span>
                       {e.pros.join(" · ")}
                     </div>
                   )}
                   {e.cons.length > 0 && (
-                    <div className="text-red-300/90">
-                      <span className="text-neutral-500">Przeciw: </span>
+                    <div className="mt-0.5 text-rose-300/90">
+                      <span className="text-neutral-500">▼ Przeciw: </span>
                       {e.cons.join(" · ")}
                     </div>
                   )}
-                  {e.note && <div className="mt-0.5 text-amber-500/90">⚠ {e.note}</div>}
+                  {e.note && <div className="mt-1 text-amber-400/90">⚠ {e.note}</div>}
                 </div>
               </div>
             </div>

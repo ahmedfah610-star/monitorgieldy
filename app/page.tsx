@@ -66,33 +66,35 @@ export default function DashboardPage() {
 
   return (
     <main className="space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Rynek dzisiaj</h1>
-          {fetchedAt && (
-            <p className="text-xs text-neutral-500">
-              Odswiezono: {new Date(fetchedAt).toLocaleString("pl-PL")}
-              {" · notowania: Yahoo Finance"}
+      <div className="card relative overflow-hidden p-5">
+        <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-blue-500/10 blur-3xl" />
+        <div className="relative flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="eyebrow">Pulpit rynkowy</p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-50">Rynek dzisiaj</h1>
+            <p className="mt-1 text-sm text-neutral-400">
+              Indeksy, notowania GPW i USA, najnowsze rekomendacje i raporty — w jednym miejscu.
             </p>
-          )}
+            {fetchedAt && (
+              <p className="mt-2 text-xs text-neutral-500">
+                Odświeżono {new Date(fetchedAt).toLocaleString("pl-PL")} · źródło: Yahoo Finance
+              </p>
+            )}
+          </div>
+          <button onClick={load} disabled={loading} className="btn btn-primary">
+            {loading ? "Odświeżam…" : "↻ Odśwież wszystko"}
+          </button>
         </div>
-        <button
-          onClick={load}
-          disabled={loading}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {loading ? "Odswiezam…" : "Odswiez wszystko"}
-        </button>
       </div>
 
       {error && (
-        <div className="rounded-md border border-red-900 bg-red-950/50 px-4 py-3 text-sm text-red-300">
+        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
           {error}
         </div>
       )}
 
       {dbEmpty && (
-        <div className="rounded-md border border-amber-900 bg-amber-950/40 px-4 py-3 text-sm text-amber-300">
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
           Baza nie jest skonfigurowana — sekcje rekomendacji i raportów są puste. Ustaw{" "}
           <code>POSTGRES_URL</code> i uruchom <code>/api/init-db</code>.
         </div>
@@ -131,9 +133,9 @@ export default function DashboardPage() {
       {/* --- Raporty + wnioski AI --- */}
       <Section title="Najnowsze raporty okresowe" href="/reports" hrefLabel="Wszystkie →">
         {latestReports.length > 0 ? (
-          <ul className="divide-y divide-neutral-900 rounded-lg border border-neutral-800">
+          <ul className="card divide-y divide-white/[0.05]">
             {latestReports.map((r, i) => (
-              <li key={`${r.url}:${i}`} className="flex flex-wrap items-center gap-3 px-3 py-2">
+              <li key={`${r.url}:${i}`} className="flex flex-wrap items-center gap-3 px-3 py-2.5 transition-colors hover:bg-white/[0.02]">
                 <span className={`h-2 w-2 shrink-0 rounded-full ${REPORT_DOT[r.reportType] ?? "bg-neutral-400"}`} />
                 <span className="font-mono text-xs text-neutral-500">{r.watchTicker}</span>
                 <span className="text-xs text-neutral-500">{r.period}</span>
@@ -195,9 +197,12 @@ function Section({
   return (
     <section className="space-y-3">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-lg font-medium text-neutral-200">{title}</h2>
+        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-neutral-300">
+          <span className="h-3.5 w-1 rounded-full bg-gradient-to-b from-blue-500 to-indigo-500" />
+          {title}
+        </h2>
         {href && (
-          <Link href={href} className="text-xs text-neutral-400 hover:text-blue-400">
+          <Link href={href} className="text-xs font-medium text-neutral-400 transition hover:text-blue-400">
             {hrefLabel ?? "Więcej →"}
           </Link>
         )}

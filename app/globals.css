@@ -4,34 +4,37 @@
 
 :root {
   color-scheme: dark;
-  --accent: 59 130 246; /* blue-500 w RGB (do rgba(var(--accent)/a)) */
+  --bg: #08090c;
+  --accent: 56 130 246; /* niebieski akcent marki (rgba(var(--accent)/a)) */
+  --pos: 16 185 129; /* emerald — wzrost */
+  --neg: 244 63 94; /* rose — spadek */
 }
 
 body {
   @apply font-sans text-neutral-100 antialiased;
   min-height: 100vh;
-  /* Subtelna poswiata u gory zamiast plaskiej czerni — daje glebie bez halasu. */
+  /* Warstwowa poswiata — glebia jak w terminalu handlowym, bez halasu. */
   background:
-    radial-gradient(900px 500px at 50% -8%, rgb(var(--accent) / 0.07), transparent 60%),
-    #09090b;
+    radial-gradient(1100px 600px at 50% -12%, rgb(var(--accent) / 0.09), transparent 60%),
+    radial-gradient(760px 420px at 100% -5%, rgb(99 102 241 / 0.06), transparent 55%),
+    var(--bg);
   background-attachment: fixed;
 }
 
-/* Ladniejsze zaznaczenie i pasek przewijania — drobiazgi, ktore robia roznice. */
 ::selection {
   background: rgb(var(--accent) / 0.32);
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #2a2a2e transparent;
+  scrollbar-color: #26262b transparent;
 }
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2a2a2e;
+  background: #26262b;
   border-radius: 9999px;
   border: 2px solid transparent;
   background-clip: padding-box;
@@ -46,7 +49,59 @@ body {
   outline-offset: 2px;
 }
 
-/* Liczby w tabelach — jednolita szerokosc cyfr. */
 table {
   font-variant-numeric: tabular-nums;
+}
+
+@layer components {
+  /* Powierzchnie */
+  .card {
+    @apply rounded-xl border border-white/[0.07] bg-white/[0.02];
+  }
+  .card-hover {
+    @apply transition-colors hover:border-white/[0.14] hover:bg-white/[0.035];
+  }
+  .surface-2 {
+    @apply rounded-lg border border-white/[0.06] bg-white/[0.025];
+  }
+
+  /* Przyciski */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply text-white shadow-lg shadow-blue-600/20 ring-1 ring-inset ring-white/10;
+    background-image: linear-gradient(135deg, #3b82f6, #4f46e5);
+  }
+  .btn-primary:not(:disabled):hover {
+    filter: brightness(1.08);
+  }
+  .btn-ghost {
+    @apply border border-white/10 text-neutral-300 hover:border-white/25 hover:text-white;
+  }
+
+  /* Nawigacja */
+  .navpill {
+    @apply whitespace-nowrap rounded-lg px-3 py-1.5 text-[13px] font-medium transition;
+  }
+
+  /* Etykiety / oznaczenia */
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset;
+  }
+  .badge-pos {
+    @apply bg-emerald-500/10 text-emerald-300 ring-emerald-500/20;
+  }
+  .badge-neg {
+    @apply bg-rose-500/10 text-rose-300 ring-rose-500/20;
+  }
+  .badge-neutral {
+    @apply bg-white/[0.04] text-neutral-400 ring-white/10;
+  }
+  .badge-warn {
+    @apply bg-amber-500/10 text-amber-300 ring-amber-500/20;
+  }
 }
