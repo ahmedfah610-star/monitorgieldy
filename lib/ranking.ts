@@ -138,6 +138,10 @@ function rawSignals(
     else if (fin.pe !== null) parts.push("C/Z <0");
     if (fin.evEbitda !== null && fin.evEbitda > 0) parts.push(`EV/EBITDA ${fin.evEbitda.toFixed(1)}`);
     if (fin.pbv !== null && fin.pbv > 0) parts.push(`C/WK ${fin.pbv.toFixed(1)}`);
+    // Soczewka bankowa: ROE na jednostke C/WK (im wyzej, tym taniej za rentownosc).
+    if (sector === "Bankowość" && qr.roe !== null && fin.pbv !== null && fin.pbv > 0) {
+      parts.push(`ROE/C-WK ${((qr.roe / fin.pbv) * 100).toFixed(0)}`);
+    }
     if (qr.peg !== null && qr.peg > 0) parts.push(`PEG ${qr.peg.toFixed(1)}`);
     if (fin.marketCap !== null && fin.marketCap > 0) parts.push(`kap. ${(fin.marketCap / 1e9).toFixed(1)} mld`);
     // value=null tutaj — wlasciwy z-score wyliczy buildRanking z kompozytu wycen.
@@ -313,8 +317,8 @@ export interface RankItem {
   turnover?: number | null;
   /** Kontrolowana przez Skarb Panstwa (ryzyko polityczne) — dyskonto GPW. */
   stateControlled?: boolean;
-  /** Surowe wskazniki wyceny do kompozytu (E/P, EBITDA/EV, B/P). */
-  valuation?: { pe: number | null; evEbitda: number | null; pbv: number | null };
+  /** Surowe wskazniki wyceny do kompozytu (E/P, EBITDA/EV, B/P) + ROE do soczewki bankowej. */
+  valuation?: { pe: number | null; evEbitda: number | null; pbv: number | null; roe: number | null };
   raw: Record<string, Raw>;
 }
 
@@ -485,8 +489,17 @@ export function buildRanking(items: RankItem[]): RankingEntry[] {
   const zEP = sectorRelZ(items, (it) => (it.valuation?.pe && it.valuation.pe > 0 ? 1 / it.valuation.pe : null));
   const zEV = sectorRelZ(items, (it) => (it.valuation?.evEbitda && it.valuation.evEbitda > 0 ? 1 / it.valuation.evEbitda : null));
   const zBP = sectorRelZ(items, (it) => (it.valuation?.pbv && it.valuation.pbv > 0 ? 1 / it.valuation.pbv : null));
+  // Soczewka BANKOWA: ROE / C-WK. Bank z wysokim ROE, ale niskim C/WK jest
+  // niedowartościowany (rynek nie wycenia rentowności) — standard analizy banków,
+  // ktore stanowia ~40% WIG. Tylko dla sektora "Bankowość"; standaryzowane w grupie.
+  const zBank = sectorRelZ(items, (it) =>
+    it.sector === "Bankowość" && it.valuation?.roe !== null && it.valuation?.roe !== undefined &&
+    it.valuation?.pbv && it.valuation.pbv > 0
+      ? it.valuation.roe / it.valuation.pbv
+      : null,
+  );
   const valueZ = items.map((_, i) => {
-    const zs = [zEP[i], zEV[i], zBP[i]].filter((z): z is number => z !== null);
+    const zs = [zEP[i], zEV[i], zBP[i], zBank[i]].filter((z): z is number => z !== null);
     return zs.length ? zs.reduce((a, b) => a + b, 0) / zs.length : null;
   });
 
@@ -583,7 +596,12 @@ export async function computeRankings(): Promise<{ ranking: RankingEntry[]; usin
       marketCap: f.quote?.marketCap ?? null,
       turnover,
       stateControlled: isStateControlled(f.w.ticker),
-      valuation: { pe: f.quote?.pe ?? null, evEbitda: f.quote?.evEbitda ?? null, pbv: f.quote?.pbv ?? null },
+      valuation: {
+        pe: f.quote?.pe ?? null,
+        evEbitda: f.quote?.evEbitda ?? null,
+        pbv: f.quote?.pbv ?? null,
+        roe: f.quote?.roe ?? null,
+      },
       raw: rawSignals(
         f.signals,
         climates.get(f.sector) ?? null,
