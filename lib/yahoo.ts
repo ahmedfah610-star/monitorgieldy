@@ -171,15 +171,22 @@ export interface QualityRisk {
   profitMargin: number | null; // marza netto (ulamek)
   peg: number | null; // C/Z / wzrost — nizej = taniej wzgledem wzrostu
   evEbitda: number | null; // EV/EBITDA — wycena niezalezna od struktury kapitalu
+  // Zapasowe wskazniki wyceny (gdy wsadowy v7/quote zawiedzie — nie tracimy C/Z, C/WK).
+  pe: number | null;
+  pbv: number | null;
+  marketCap: number | null;
 }
 
 export async function fetchQualityRisk(symbol: string): Promise<QualityRisk> {
-  const empty: QualityRisk = { roe: null, debtToEquity: null, profitMargin: null, peg: null, evEbitda: null };
+  const empty: QualityRisk = {
+    roe: null, debtToEquity: null, profitMargin: null, peg: null, evEbitda: null,
+    pe: null, pbv: null, marketCap: null,
+  };
   const cc = await getCrumb();
   if (!cc) return empty;
   const url =
     `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}` +
-    `?modules=financialData,defaultKeyStatistics&crumb=${encodeURIComponent(cc.crumb)}`;
+    `?modules=financialData,defaultKeyStatistics,summaryDetail,price&crumb=${encodeURIComponent(cc.crumb)}`;
   try {
     const res = await fetch(url, {
       cache: "no-store",
@@ -198,6 +205,8 @@ export async function fetchQualityRisk(symbol: string): Promise<QualityRisk> {
     if (!r) return empty;
     const fd = r.financialData ?? {};
     const ks = r.defaultKeyStatistics ?? {};
+    const sd = r.summaryDetail ?? {};
+    const pr = r.price ?? {};
     // Pola bywaja liczba albo obiektem {raw:number} — obsluz oba.
     const raw = (o: Record<string, unknown>, k: string): number | null => {
       const v = o?.[k];
@@ -214,6 +223,9 @@ export async function fetchQualityRisk(symbol: string): Promise<QualityRisk> {
       profitMargin: raw(fd, "profitMargins"),
       peg: raw(ks, "pegRatio"),
       evEbitda: raw(ks, "enterpriseToEbitda"),
+      pe: raw(sd, "trailingPE"),
+      pbv: raw(ks, "priceToBook") ?? raw(sd, "priceToBook"),
+      marketCap: raw(pr, "marketCap") ?? raw(sd, "marketCap"),
     };
   } catch {
     return empty;
