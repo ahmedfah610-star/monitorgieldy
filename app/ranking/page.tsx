@@ -272,6 +272,25 @@ export default function RankingPage() {
                     <Chip key={c.key} c={c} />
                   ))}
                 </div>
+                <div className="mt-2 rounded-md border border-neutral-800/70 bg-neutral-900/40 px-2.5 py-2 text-xs">
+                  <div className="font-medium text-neutral-200">
+                    <span className="text-neutral-500">Wniosek: </span>
+                    {e.verdict}
+                  </div>
+                  {e.pros.length > 0 && (
+                    <div className="mt-1 text-emerald-300/90">
+                      <span className="text-neutral-500">Za: </span>
+                      {e.pros.join(" · ")}
+                    </div>
+                  )}
+                  {e.cons.length > 0 && (
+                    <div className="text-red-300/90">
+                      <span className="text-neutral-500">Przeciw: </span>
+                      {e.cons.join(" · ")}
+                    </div>
+                  )}
+                  {e.note && <div className="mt-0.5 text-amber-500/90">⚠ {e.note}</div>}
+                </div>
               </div>
             </div>
           </li>
@@ -280,13 +299,12 @@ export default function RankingPage() {
 
       <p className="text-[10px] text-neutral-600">
         Metodyka (wskaźnik złożony wg podejścia OECD/JRC — bez modelu nadzorowanego, bo brak
-        etykiet/outcome): odporny z-score przekrojowy (mediana + MAD, winsoryzacja ±2,5σ) →
-        ważona średnia (rekomendacje 18%, potencjał 16%, prognoza wzrostu 12%, insiderzy 14%,
-        krótkie pozycje 13%, wyniki 10% — dynamika r/r i k/k przychodów oraz zysku, znaczne pakiety
-        7%, koniunktura 6%, dywidenda 4%) → redukcja wg pokrycia danymi →
-        mapowanie przez dystrybuantę normalną. Rekomendacje mają tłumienie małej próby. Składowa
-        „koniunktura" różnicuje dopiero spółki różnych rynków (PL vs US). Narzędzie informacyjne,
-        nie doradztwo inwestycyjne.
+        etykiet/outcome): odporny z-score przekrojowy (mediana + MAD, winsoryzacja ±2,5σ), przy
+        wycenie / jakości / zadłużeniu <strong>względem sektora</strong> → ważona średnia z rdzeniem
+        Wycena 18% + Jakość/ROE 15% + Momentum 13% (dalej wyniki 10%, potencjał 8%, zadłużenie 7%,
+        reszta 3–6% jako korekty) → redukcja wg pokrycia danymi <strong>i płynności</strong> (małe
+        spółki ku neutralnemu) → dystrybuanta normalna. Wnioski (werdykt, za/przeciw) liczone
+        deterministycznie z σ składowych — bez AI. Narzędzie informacyjne, nie doradztwo inwestycyjne.
       </p>
     </main>
   );

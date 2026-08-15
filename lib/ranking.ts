@@ -339,6 +339,60 @@ function robustStat(vals: number[]): { med: number; scale: number } | null {
 const SECTOR_RELATIVE = new Set(["value", "quality", "risk"]);
 const MIN_SECTOR_N = 3;
 
+/** Naglowkowa wartosc skladowej: bez koncowki "· +0.8σ" i tylko pierwszy token
+ *  (np. "C/Z 8,1", "ROE 18%") — zwiezle do wniosku, bez calego lancucha kontekstu. */
+function headMetric(detail: string): string {
+  const noSigma = detail.replace(/\s*·\s*[+-]?\d+(?:\.\d+)?σ(?:\s*vs sektor)?\s*$/u, "").trim();
+  return noSigma.split(" · ")[0].trim();
+}
+
+const CORE_KEYS = ["value", "quality", "momentum"];
+
+/**
+ * Wniosek slowny per spolka — deterministyczny, z policzonych sigma. Bez AI.
+ * Werdykt z wyniku + rdzenia (V/Q/M), najmocniejsze argumenty za/przeciw wg
+ * wkladu (waga × sigma), plus ostrzezenia (malo danych / niska plynnosc).
+ */
+function buildConclusion(
+  components: RankingComponent[],
+  score: number,
+  coverage: number,
+  marketCap: number | null | undefined,
+): { verdict: string; pros: string[]; cons: string[]; note: string | null } {
+  const active = components.filter((c): c is RankingComponent & { score: number } => c.score !== null);
+  const byContrib = [...active].sort((a, b) => b.weight * b.score - a.weight * a.score);
+  const pros = byContrib.filter((c) => c.score >= 0.6).slice(0, 3).map((c) => `${c.label} (${headMetric(c.detail)})`);
+  const cons = byContrib.filter((c) => c.score <= -0.6).reverse().slice(0, 3).map((c) => `${c.label} (${headMetric(c.detail)})`);
+
+  // Rdzen V/Q/M — srednia sigma dostepnych skladowych rdzenia.
+  const coreVals = CORE_KEYS.map((k) => active.find((c) => c.key === k)?.score).filter(
+    (v): v is number => v !== undefined,
+  );
+  const coreAvg = coreVals.length ? coreVals.reduce((a, b) => a + b, 0) / coreVals.length : null;
+
+  let band: string;
+  if (score >= 68) band = "Mocny kandydat do kupna";
+  else if (score >= 60) band = "Atrakcyjna";
+  else if (score >= 53) band = "Umiarkowanie atrakcyjna";
+  else if (score >= 47) band = "Neutralna";
+  else if (score >= 40) band = "Mało atrakcyjna";
+  else band = "Słaba — raczej unikać";
+
+  let core = "";
+  if (coreAvg !== null && coreVals.length >= 2) {
+    if (coreAvg >= 0.4) core = " — rdzeń V/Q/M na plus";
+    else if (coreAvg <= -0.4) core = " — słaby rdzeń V/Q/M";
+  }
+  const verdict = band + core;
+
+  const notes: string[] = [];
+  if (coverage < 0.3) notes.push("mało danych — wynik niepewny");
+  if (marketCap !== null && marketCap !== undefined && marketCap > 0 && marketCap < LIQ_FULL) {
+    notes.push(`mała spółka (kap. ${(marketCap / 1e9).toFixed(1)} mld) — sygnał obniżony`);
+  }
+  return { verdict, pros, cons, note: notes.length ? notes.join(" · ") : null };
+}
+
 /** Buduje ranking z surowych sygnalow: standaryzacja przekrojowa + agregacja. */
 export function buildRanking(items: RankItem[]): RankingEntry[] {
   // Statystyki odpornosciowe per skladowa (globalnie, na zbiorze spolek).
@@ -394,13 +448,19 @@ export function buildRanking(items: RankItem[]): RankingEntry[] {
     const confidence = sumAllW > 0 ? sumActiveW / sumAllW : 0;
     // Redukcja wg pewnosci (pokrycie) ORAZ plynnosci (male spolki mniej wiarygodne).
     const shrunk = composite * confidence * liquidityMult(it.marketCap);
+    const score = Math.round(100 * normCdf(shrunk / SPREAD));
+    const { verdict, pros, cons, note } = buildConclusion(components, score, confidence, it.marketCap);
     return {
       ticker: it.ticker,
       company: it.company,
       market: it.market,
-      score: Math.round(100 * normCdf(shrunk / SPREAD)),
+      score,
       coverage: confidence,
       components,
+      verdict,
+      pros,
+      cons,
+      note,
     };
   });
 

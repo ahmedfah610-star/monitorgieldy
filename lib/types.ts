@@ -192,6 +192,14 @@ export interface RankingEntry {
   /** Udzial skladowych, ktore mialy dane (0-1). */
   coverage: number;
   components: RankingComponent[];
+  /** Krotki werdykt slowny (np. "Mocny kandydat do kupna"). */
+  verdict: string;
+  /** Najmocniejsze argumenty ZA (label + wartosc). */
+  pros: string[];
+  /** Najmocniejsze argumenty PRZECIW. */
+  cons: string[];
+  /** Ostrzezenie (malo danych / niska plynnosc) albo null. */
+  note: string | null;
 }
 
 /** Pozycja w portfelu (Faza 14). Kwota w PLN lub USD (USD przeliczane po 3,75). */
