@@ -122,24 +122,26 @@ function rawSignals(
   sector: string,
   gdp: number | null,
   mom: { r1m: number | null; r3m: number | null },
-  fin: { pe: number | null; pbv: number | null; marketCap: number | null },
+  fin: { pe: number | null; pbv: number | null; evEbitda: number | null; marketCap: number | null },
   qr: { roe: number | null; debtToEquity: number | null; profitMargin: number | null; peg: number | null },
 ): Record<string, Raw> {
   const out: Record<string, Raw> = {};
   let revGrowth: number | null = null; // dynamika przychodow firmy — do prognozy
 
-  // Wycena: rentownosc zyskow E/P = 1/(C/Z). Wyzej = taniej wzgledem zyskow = lepiej.
-  // Strata (C/Z <= 0) => brak sygnalu (nie nagradzamy sztucznie). C/WK + PEG + kap. dla kontekstu.
-  // Standaryzowane WZGLEDEM SEKTORA w buildRanking (banki vs tech maja inny poziom C/Z).
-  const capStr = fin.marketCap !== null && fin.marketCap > 0 ? ` · kap. ${(fin.marketCap / 1e9).toFixed(1)} mld` : "";
-  const pegStr = qr.peg !== null && qr.peg > 0 ? ` · PEG ${qr.peg.toFixed(1)}` : "";
-  if (fin.pe !== null && fin.pe > 0) {
-    out.value = {
-      value: 1 / fin.pe,
-      detail: `C/Z ${fin.pe.toFixed(1)}${fin.pbv !== null && fin.pbv > 0 ? ` · C/WK ${fin.pbv.toFixed(1)}` : ""}${pegStr}${capStr}`,
-    };
-  } else {
-    out.value = { value: null, detail: (fin.pe !== null && fin.pe <= 0 ? "strata (C/Z ujemne)" : "brak") + capStr };
+  // Wycena: KOMPOZYT trzech miar (E/P z C/Z, EBITDA/EV z EV/EBITDA, B/P z C/WK),
+  // kazda standaryzowana WZGLEDEM SEKTORA i usredniona — liczone w buildRanking.
+  // Tu budujemy tylko czytelny opis; EV/EBITDA wazne dla zadluzonych spolek GPW
+  // (energia, paliwa, przemysl), gdzie samo C/Z myli. PEG + kap. dla kontekstu.
+  {
+    const parts: string[] = [];
+    if (fin.pe !== null && fin.pe > 0) parts.push(`C/Z ${fin.pe.toFixed(1)}`);
+    else if (fin.pe !== null) parts.push("C/Z <0");
+    if (fin.evEbitda !== null && fin.evEbitda > 0) parts.push(`EV/EBITDA ${fin.evEbitda.toFixed(1)}`);
+    if (fin.pbv !== null && fin.pbv > 0) parts.push(`C/WK ${fin.pbv.toFixed(1)}`);
+    if (qr.peg !== null && qr.peg > 0) parts.push(`PEG ${qr.peg.toFixed(1)}`);
+    if (fin.marketCap !== null && fin.marketCap > 0) parts.push(`kap. ${(fin.marketCap / 1e9).toFixed(1)} mld`);
+    // value=null tutaj — wlasciwy z-score wyliczy buildRanking z kompozytu wycen.
+    out.value = { value: null, detail: parts.length ? parts.join(" · ") : "brak" };
   }
 
   // Jakosc: ROE (rentownosc kapitalu wlasnego). Wyzej = lepszy biznes. Sektorowo-wzglednie.
@@ -307,17 +309,69 @@ export interface RankItem {
   market: Market;
   sector?: string;
   marketCap?: number | null;
+  /** Sredni dzienny obrot (wolumen×cena, waluta lokalna) — do filtra plynnosci. */
+  turnover?: number | null;
+  /** Kontrolowana przez Skarb Panstwa (ryzyko polityczne) — dyskonto GPW. */
+  stateControlled?: boolean;
+  /** Surowe wskazniki wyceny do kompozytu (E/P, EBITDA/EV, B/P). */
+  valuation?: { pe: number | null; evEbitda: number | null; pbv: number | null };
   raw: Record<string, Raw>;
 }
 
-// Filtr plynnosci: bardzo male spolki sa nieplynne i zaszumione (pulapki wartosci),
-// wiec ich wynik ciagniemy ku neutralnemu — mnoznik od kapitalizacji, z podloga.
-// Pelne zaufanie od ~2 mld (lokalnej waluty); brak danych => brak kary (1.0).
-const LIQ_FULL = 2e9;
+// Spolki GPW z dominujacym udzialem Skarbu Panstwa lub kontrola panstwowa.
+// Analityk GPW stosuje dyskonto: ryzyko polityczne (skok dywidendowy, wymuszone
+// inwestycje, rotacja zarzadow) — tania SOE bywa tania "slusznie" (pulapka wartosci).
+const STATE_CONTROLLED = new Set(
+  ["pkn", "pge", "pzu", "pko", "peo", "kgh", "jsw", "tpe", "ena", "eng", "att", "gpw", "lts", "pgn", "cez"],
+);
+const STATE_PENALTY = 0.12; // ~ -5 pkt na skali 0-100 (przy neutralnym x)
+function isStateControlled(ticker: string): boolean {
+  return STATE_CONTROLLED.has(ticker.trim().toLowerCase());
+}
+
+// Filtr plynnosci: nieplynne spolki sa zaszumione (pulapki wartosci), wiec ich
+// wynik ciagniemy ku neutralnemu. Bierzemy REALNY obrot (wolumen×cena) — lepszy
+// niz sama kapitalizacja (spolka moze byc duza, ale malo handlowana). Pelne
+// zaufanie od ~5 mln/dzien; gdy brak obrotu, fallback na kapitalizacje (~2 mld).
+const TURNOVER_FULL = 5e6;
+const CAP_FULL = 2e9;
 const LIQ_FLOOR = 0.65;
-function liquidityMult(marketCap: number | null | undefined): number {
-  if (marketCap === null || marketCap === undefined || !(marketCap > 0)) return 1;
-  return clamp(marketCap / LIQ_FULL, LIQ_FLOOR, 1);
+function liquidityMult(turnover: number | null | undefined, marketCap: number | null | undefined): number {
+  if (turnover !== null && turnover !== undefined && turnover > 0) {
+    return clamp(turnover / TURNOVER_FULL, LIQ_FLOOR, 1);
+  }
+  if (marketCap !== null && marketCap !== undefined && marketCap > 0) {
+    return clamp(marketCap / CAP_FULL, LIQ_FLOOR, 1);
+  }
+  return 1;
+}
+
+/** Sektorowo-wzgledny z-score dla wartosci pobieranej z RankItem (fallback globalny). */
+function sectorRelZ(items: RankItem[], getVal: (it: RankItem) => number | null): (number | null)[] {
+  const gstat = robustStat(items.map(getVal).filter((v): v is number => v !== null && Number.isFinite(v)));
+  const bySector = new Map<string, number[]>();
+  for (const it of items) {
+    const v = getVal(it);
+    if (v === null || !Number.isFinite(v)) continue;
+    const sec = it.sector ?? "Inna";
+    const arr = bySector.get(sec) ?? [];
+    arr.push(v);
+    bySector.set(sec, arr);
+  }
+  const sstat = new Map<string, { med: number; scale: number }>();
+  for (const [sec, vals] of bySector) {
+    if (vals.length >= MIN_SECTOR_N) {
+      const st = robustStat(vals);
+      if (st && st.scale > 0) sstat.set(sec, st);
+    }
+  }
+  return items.map((it) => {
+    const v = getVal(it);
+    if (v === null || !Number.isFinite(v)) return null;
+    const st = sstat.get(it.sector ?? "Inna") ?? gstat;
+    if (!st || st.scale <= 0) return 0;
+    return clamp((v - st.med) / st.scale, -WINSOR, WINSOR);
+  });
 }
 
 /** Odporne statystyki (mediana + skala z MAD, fallback na odch. std). */
@@ -336,7 +390,8 @@ function robustStat(vals: number[]): { med: number; scale: number } | null {
 // ~30-50). Standaryzacja globalna karalaby tech i nagradzala banki bez zwiazku z
 // realnym niedowartosciowaniem. Dlatego "value" standaryzujemy WZGLEDEM SEKTORA
 // (gdy sektor ma >=3 spolki z danymi), inaczej globalnie.
-const SECTOR_RELATIVE = new Set(["value", "quality", "risk"]);
+// "value" jest liczone osobno (kompozyt E/P + EBITDA/EV + B/P), wiec nie ma go tu.
+const SECTOR_RELATIVE = new Set(["quality", "risk"]);
 const MIN_SECTOR_N = 3;
 
 /** Naglowkowa wartosc skladowej: bez koncowki "· +0.8σ" i tylko pierwszy token
@@ -357,7 +412,8 @@ function buildConclusion(
   components: RankingComponent[],
   score: number,
   coverage: number,
-  marketCap: number | null | undefined,
+  liqMult: number,
+  stateControlled: boolean,
 ): { verdict: string; pros: string[]; cons: string[]; note: string | null } {
   const active = components.filter((c): c is RankingComponent & { score: number } => c.score !== null);
   const byContrib = [...active].sort((a, b) => b.weight * b.score - a.weight * a.score);
@@ -387,9 +443,8 @@ function buildConclusion(
 
   const notes: string[] = [];
   if (coverage < 0.3) notes.push("mało danych — wynik niepewny");
-  if (marketCap !== null && marketCap !== undefined && marketCap > 0 && marketCap < LIQ_FULL) {
-    notes.push(`mała spółka (kap. ${(marketCap / 1e9).toFixed(1)} mld) — sygnał obniżony`);
-  }
+  if (liqMult < 0.99) notes.push("niska płynność — sygnał obniżony");
+  if (stateControlled) notes.push("kontrola Skarbu Państwa — ryzyko polityczne (dyskonto)");
   return { verdict, pros, cons, note: notes.length ? notes.join(" · ") : null };
 }
 
@@ -424,10 +479,28 @@ export function buildRanking(items: RankItem[]): RankingEntry[] {
     sectorStat[key] = m;
   }
 
-  const entries: RankingEntry[] = items.map((it) => {
+  // KOMPOZYT WYCENY: trzy miary (E/P, EBITDA/EV, B/P), kazda standaryzowana
+  // sektorowo-wzglednie, usredniona po dostepnych. To analityczny standard —
+  // jedna miara myli (C/Z zawodzi przy zadluzeniu; EV/EBITDA to koryguje).
+  const zEP = sectorRelZ(items, (it) => (it.valuation?.pe && it.valuation.pe > 0 ? 1 / it.valuation.pe : null));
+  const zEV = sectorRelZ(items, (it) => (it.valuation?.evEbitda && it.valuation.evEbitda > 0 ? 1 / it.valuation.evEbitda : null));
+  const zBP = sectorRelZ(items, (it) => (it.valuation?.pbv && it.valuation.pbv > 0 ? 1 / it.valuation.pbv : null));
+  const valueZ = items.map((_, i) => {
+    const zs = [zEP[i], zEV[i], zBP[i]].filter((z): z is number => z !== null);
+    return zs.length ? zs.reduce((a, b) => a + b, 0) / zs.length : null;
+  });
+
+  const entries: RankingEntry[] = items.map((it, idx) => {
     const components: RankingComponent[] = KEYS.map((key) => {
       const raw = it.raw[key] ?? { value: null, detail: "brak" };
       const w = WEIGHTS[key];
+      // Wycena: uzyj gotowego kompozytu (nie standaryzuj pojedynczej miary).
+      if (key === "value") {
+        const z = valueZ[idx];
+        if (z === null) return { key, label: LABELS[key], score: null, weight: w, detail: raw.detail };
+        const sigma = `${z >= 0 ? "+" : ""}${z.toFixed(1)}σ vs sektor`;
+        return { key, label: LABELS[key], score: z, weight: w, detail: `${raw.detail} · ${sigma}` };
+      }
       if (raw.value === null) return { key, label: LABELS[key], score: null, weight: w, detail: raw.detail };
       let st = stat[key];
       let relNote = "";
@@ -446,10 +519,11 @@ export function buildRanking(items: RankItem[]): RankingEntry[] {
     const sumAllW = components.reduce((a, c) => a + c.weight, 0);
     const composite = sumActiveW > 0 ? active.reduce((a, c) => a + c.weight * (c.score as number), 0) / sumActiveW : 0;
     const confidence = sumAllW > 0 ? sumActiveW / sumAllW : 0;
-    // Redukcja wg pewnosci (pokrycie) ORAZ plynnosci (male spolki mniej wiarygodne).
-    const shrunk = composite * confidence * liquidityMult(it.marketCap);
+    // Redukcja wg pewnosci (pokrycie) i plynnosci (obrot), oraz dyskonto SOE.
+    const liq = liquidityMult(it.turnover, it.marketCap);
+    const shrunk = composite * confidence * liq - (it.stateControlled ? STATE_PENALTY : 0);
     const score = Math.round(100 * normCdf(shrunk / SPREAD));
-    const { verdict, pros, cons, note } = buildConclusion(components, score, confidence, it.marketCap);
+    const { verdict, pros, cons, note } = buildConclusion(components, score, confidence, liq, Boolean(it.stateControlled));
     return {
       ticker: it.ticker,
       company: it.company,
@@ -497,27 +571,40 @@ export async function computeRankings(): Promise<{ ranking: RankingEntry[]; usin
   const climates = computeSectorClimates(fetched.map((f) => ({ sector: f.sector, r3m: f.quote?.r3m ?? null })));
 
   // Przejscie 2: surowe sygnaly z koniunktura sektora danej spolki.
-  const items: RankItem[] = fetched.map((f) => ({
-    company: f.w.name,
-    ticker: f.w.ticker,
-    market: f.w.market,
-    sector: f.sector,
-    marketCap: f.quote?.marketCap ?? null,
-    raw: rawSignals(
-      f.signals,
-      climates.get(f.sector) ?? null,
-      f.quote?.close ?? null,
-      f.sector,
-      gdp[f.w.market] ?? null,
-      { r1m: f.quote?.r1m ?? null, r3m: f.quote?.r3m ?? null },
-      { pe: f.quote?.pe ?? null, pbv: f.quote?.pbv ?? null, marketCap: f.quote?.marketCap ?? null },
-      {
-        roe: f.quote?.roe ?? null,
-        debtToEquity: f.quote?.debtToEquity ?? null,
-        profitMargin: f.quote?.profitMargin ?? null,
-        peg: f.quote?.peg ?? null,
-      },
-    ),
-  }));
+  const items: RankItem[] = fetched.map((f) => {
+    const close = f.quote?.close ?? null;
+    const avgVol = f.quote?.avgVol ?? null;
+    const turnover = close !== null && avgVol !== null ? close * avgVol : null;
+    return {
+      company: f.w.name,
+      ticker: f.w.ticker,
+      market: f.w.market,
+      sector: f.sector,
+      marketCap: f.quote?.marketCap ?? null,
+      turnover,
+      stateControlled: isStateControlled(f.w.ticker),
+      valuation: { pe: f.quote?.pe ?? null, evEbitda: f.quote?.evEbitda ?? null, pbv: f.quote?.pbv ?? null },
+      raw: rawSignals(
+        f.signals,
+        climates.get(f.sector) ?? null,
+        close,
+        f.sector,
+        gdp[f.w.market] ?? null,
+        { r1m: f.quote?.r1m ?? null, r3m: f.quote?.r3m ?? null },
+        {
+          pe: f.quote?.pe ?? null,
+          pbv: f.quote?.pbv ?? null,
+          evEbitda: f.quote?.evEbitda ?? null,
+          marketCap: f.quote?.marketCap ?? null,
+        },
+        {
+          roe: f.quote?.roe ?? null,
+          debtToEquity: f.quote?.debtToEquity ?? null,
+          profitMargin: f.quote?.profitMargin ?? null,
+          peg: f.quote?.peg ?? null,
+        },
+      ),
+    };
+  });
   return { ranking: buildRanking(items), usingDb: true };
 }

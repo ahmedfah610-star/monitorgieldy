@@ -62,6 +62,8 @@ export async function refreshPrices(): Promise<PricesRefreshSummary> {
       debtToEquity: qr.debtToEquity,
       profitMargin: qr.profitMargin,
       peg: qr.peg,
+      evEbitda: qr.evEbitda,
+      avgVol: f?.avgVol ?? null,
     });
   });
 

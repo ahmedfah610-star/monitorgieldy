@@ -161,10 +161,11 @@ export default function RankingPage() {
             najwyższa oczekiwana stopa zwrotu od <strong>bieżącej ceny</strong>, przy zdrowych
             fundamentach i sygnałach smart money. Obejmuje automatycznie cały katalog GPW (WIG20 +
             mWIG40) plus Twoją watchlistę. <strong>Rdzeń (≈46% wagi): Wycena + Jakość (ROE) +
-            Momentum</strong> — na te patrz najbardziej. Wspierają wyniki r/r, potencjał i niskie
-            zadłużenie; reszta (insider, pakiety, short, dywidenda, sektor) to już tylko korekty.
-            Wszystko sektorowo-względne tam, gdzie trzeba; małe spółki ciągnięte ku neutralnemu
-            (płynność). Złożony wskaźnik 0-100
+            Momentum</strong> — na te patrz najbardziej. Wycena to kompozyt <strong>C/Z + EV/EBITDA
+            + C/WK</strong> (EV/EBITDA łapie tanie, zadłużone spółki, których samo C/Z nie widzi),
+            liczony względem sektora. Wspierają wyniki r/r, potencjał i niskie zadłużenie; reszta to
+            korekty. Filtr płynności po <strong>realnym obrocie</strong>, dyskonto dla spółek
+            kontrolowanych przez <strong>Skarb Państwa</strong> (ryzyko polityczne). Złożony wskaźnik 0-100
             (50 = mediana rynku): każdy sygnał standaryzowany <strong>względem grupy porównawczej</strong>
             (odporny z-score, winsoryzacja) i mapowany dystrybuantą normalną. Zmienia się codziennie,
             bo dzisiejsza cena wchodzi do potencjału i momentum. Chip = odchylenie w <strong>σ</strong>

@@ -125,6 +125,7 @@ export interface Fundamentals {
   pbv: number | null; // C/WK (priceToBook)
   marketCap: number | null;
   epsTtm: number | null;
+  avgVol: number | null; // sredni dzienny wolumen 3M (do obrotu = wolumen×cena)
   currency: string | null;
 }
 
@@ -169,10 +170,11 @@ export interface QualityRisk {
   debtToEquity: number | null; // dlug/kapital wlasny (%, Yahoo), wyzej = wieksze ryzyko
   profitMargin: number | null; // marza netto (ulamek)
   peg: number | null; // C/Z / wzrost — nizej = taniej wzgledem wzrostu
+  evEbitda: number | null; // EV/EBITDA — wycena niezalezna od struktury kapitalu
 }
 
 export async function fetchQualityRisk(symbol: string): Promise<QualityRisk> {
-  const empty: QualityRisk = { roe: null, debtToEquity: null, profitMargin: null, peg: null };
+  const empty: QualityRisk = { roe: null, debtToEquity: null, profitMargin: null, peg: null, evEbitda: null };
   const cc = await getCrumb();
   if (!cc) return empty;
   const url =
@@ -211,6 +213,7 @@ export async function fetchQualityRisk(symbol: string): Promise<QualityRisk> {
       debtToEquity: raw(fd, "debtToEquity"),
       profitMargin: raw(fd, "profitMargins"),
       peg: raw(ks, "pegRatio"),
+      evEbitda: raw(ks, "enterpriseToEbitda"),
     };
   } catch {
     return empty;
@@ -254,6 +257,7 @@ export async function fetchFundamentals(symbols: string[]): Promise<Map<string, 
           pbv: num(r.priceToBook),
           marketCap: num(r.marketCap),
           epsTtm: num(r.epsTrailingTwelveMonths),
+          avgVol: num(r.averageDailyVolume3Month),
           currency: typeof r.currency === "string" ? r.currency : null,
         });
       }

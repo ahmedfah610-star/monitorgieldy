@@ -69,6 +69,9 @@ export async function ensurePriceSchema(): Promise<void> {
   await sql`ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS debt_to_equity NUMERIC;`;
   await sql`ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS profit_margin NUMERIC;`;
   await sql`ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS peg NUMERIC;`;
+  // Analityk GPW (Faza 22): EV/EBITDA + sredni obrot (plynnosc realna).
+  await sql`ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS ev_ebitda NUMERIC;`;
+  await sql`ALTER TABLE price_snapshots ADD COLUMN IF NOT EXISTS avg_vol NUMERIC;`;
 }
 
 export async function initSchema(): Promise<void> {
@@ -334,6 +337,8 @@ export interface PriceSnapshot {
   debtToEquity: number | null;
   profitMargin: number | null;
   peg: number | null;
+  evEbitda: number | null;
+  avgVol: number | null;
 }
 
 /** Zapisuje notowania dnia (upsert po ticker+market+dzis). Zwraca liczbe wierszy. */
@@ -344,16 +349,17 @@ export async function upsertPriceSnapshots(rows: PriceSnapshot[]): Promise<{ ins
     await sql`
       INSERT INTO price_snapshots
         (ticker, market, snap_date, close, change_pct, r1m, r3m, currency, pe, pbv, market_cap, eps_ttm,
-         roe, debt_to_equity, profit_margin, peg)
+         roe, debt_to_equity, profit_margin, peg, ev_ebitda, avg_vol)
       VALUES (${r.ticker}, ${r.market}, CURRENT_DATE, ${r.close}, ${r.changePct}, ${r.r1m}, ${r.r3m},
         ${r.currency}, ${r.pe}, ${r.pbv}, ${r.marketCap}, ${r.epsTtm},
-        ${r.roe}, ${r.debtToEquity}, ${r.profitMargin}, ${r.peg})
+        ${r.roe}, ${r.debtToEquity}, ${r.profitMargin}, ${r.peg}, ${r.evEbitda}, ${r.avgVol})
       ON CONFLICT (ticker, market, snap_date)
       DO UPDATE SET close = EXCLUDED.close, change_pct = EXCLUDED.change_pct,
         r1m = EXCLUDED.r1m, r3m = EXCLUDED.r3m, currency = EXCLUDED.currency,
         pe = EXCLUDED.pe, pbv = EXCLUDED.pbv, market_cap = EXCLUDED.market_cap,
         eps_ttm = EXCLUDED.eps_ttm, roe = EXCLUDED.roe, debt_to_equity = EXCLUDED.debt_to_equity,
-        profit_margin = EXCLUDED.profit_margin, peg = EXCLUDED.peg, created_at = now();
+        profit_margin = EXCLUDED.profit_margin, peg = EXCLUDED.peg,
+        ev_ebitda = EXCLUDED.ev_ebitda, avg_vol = EXCLUDED.avg_vol, created_at = now();
     `;
     inserted += 1;
   }
@@ -369,6 +375,7 @@ export async function getLatestPrices(): Promise<Map<string, PriceSnapshot>> {
        pe::float8 AS "pe", pbv::float8 AS "pbv", market_cap::float8 AS "marketCap",
        eps_ttm::float8 AS "epsTtm", roe::float8 AS "roe", debt_to_equity::float8 AS "debtToEquity",
        profit_margin::float8 AS "profitMargin", peg::float8 AS "peg",
+       ev_ebitda::float8 AS "evEbitda", avg_vol::float8 AS "avgVol",
        to_char(snap_date,'YYYY-MM-DD') AS "snapDate"
      FROM price_snapshots
      ORDER BY ticker, market, snap_date DESC;`,
