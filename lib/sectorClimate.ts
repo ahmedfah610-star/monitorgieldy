@@ -52,32 +52,40 @@ export const SECTOR_CLIMATE_PRIOR: Record<string, SectorPrior> = {
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
-/** Skala mapowania sredniej sily 3M sektora na [-1,1]: ±15% kwartalnie → ±1. */
+/** Skala mapowania sredniej sily sektora na [-1,1]: ±15% → ±1. */
 const MOMENTUM_SCALE = 0.15;
+// Koniunktura ma "zyc z rynkiem" — wiec skladnik LIVE (sila kursow sektora) wazy
+// wiecej niz strukturalny prior. Prior jest tylko kotwica na starcie / gdy malo danych.
+const LIVE_WEIGHT = 0.6;
+const PRIOR_WEIGHT = 0.4;
 
 export interface SectorClimate {
   sector: string;
-  prior: number;
-  bottomUp: number | null; // z sily 3M spolek sektora, [-1,1]
-  climate: number; // finalny blend, [-1,1]
+  prior: number; // strukturalny prior [-1,1]
+  bottomUp: number | null; // skladnik LIVE z kursow sektora [-1,1]
+  climate: number; // finalny blend [-1,1]
   members: number; // ile spolek sektora mialo dane
+  mom3m: number | null; // srednia sila 3M sektora (ulamek)
+  mom1m: number | null; // srednia sila 1M sektora (ulamek)
+  breadth: number | null; // udzial spolek sektora na plusie 3M [0,1]
   note: string;
 }
 
 /**
- * Liczy koniunkture sektora: blend priora ze srednia sila 3M spolek sektora.
- * `members` to lista {sector, r3m} ze wszystkich spolek uniwersum (r3m moze byc null).
+ * Liczy koniunkture sektora — ZYWA, poruszajaca sie z rynkiem. Skladnik LIVE
+ * (sila kursow spolek sektora: 3M z wieksza, 1M z mniejsza waga + szerokosc rynku)
+ * wazy 60%, strukturalny prior 40%. `members` to {sector, r1m, r3m} z uniwersum.
  */
 export function computeSectorClimates(
-  members: { sector: string; r3m: number | null }[],
+  members: { sector: string; r1m: number | null; r3m: number | null }[],
 ): Map<string, SectorClimate> {
-  // Agregacja oddolna: srednia r3m per sektor (tylko spolki z historia).
-  const agg = new Map<string, { sum: number; n: number }>();
+  const agg = new Map<string, { s3: number; n3: number; s1: number; n1: number; up: number }>();
   for (const m of members) {
-    if (m.r3m === null || !Number.isFinite(m.r3m)) continue;
-    const a = agg.get(m.sector) ?? { sum: 0, n: 0 };
-    a.sum += m.r3m;
-    a.n += 1;
+    const a = agg.get(m.sector) ?? { s3: 0, n3: 0, s1: 0, n1: 0, up: 0 };
+    if (m.r3m !== null && Number.isFinite(m.r3m)) {
+      a.s3 += m.r3m; a.n3 += 1; if (m.r3m > 0) a.up += 1;
+    }
+    if (m.r1m !== null && Number.isFinite(m.r1m)) { a.s1 += m.r1m; a.n1 += 1; }
     agg.set(m.sector, a);
   }
 
@@ -85,16 +93,23 @@ export function computeSectorClimates(
   for (const sector of SECTORS) {
     const p = SECTOR_CLIMATE_PRIOR[sector] ?? SECTOR_CLIMATE_PRIOR.Inna;
     const a = agg.get(sector);
-    // Potrzeba >=2 spolek, by srednia sektora byla sensowna (mniej = sam szum).
-    const bottomUp = a && a.n >= 2 ? clamp(a.sum / a.n / MOMENTUM_SCALE, -1, 1) : null;
-    const climate = bottomUp === null ? p.climate : clamp(0.6 * p.climate + 0.4 * bottomUp, -1, 1);
+    const mom3m = a && a.n3 ? a.s3 / a.n3 : null;
+    const mom1m = a && a.n1 ? a.s1 / a.n1 : null;
+    const breadth = a && a.n3 ? a.up / a.n3 : null;
+
+    // LIVE: sila kursow (3M mocniej, 1M lzej) + lekki przechyl od szerokosci rynku.
+    // Wymaga >=2 spolek z historia 3M, inaczej sam prior (za malo danych).
+    let bottomUp: number | null = null;
+    if (a && a.n3 >= 2 && mom3m !== null) {
+      const momPart = (0.65 * mom3m + 0.35 * (mom1m ?? mom3m)) / MOMENTUM_SCALE;
+      const breadthTilt = breadth !== null ? (breadth - 0.5) * 0.5 : 0; // ±0.25
+      bottomUp = clamp(momPart + breadthTilt, -1, 1);
+    }
+    const climate = bottomUp === null ? p.climate : clamp(PRIOR_WEIGHT * p.climate + LIVE_WEIGHT * bottomUp, -1, 1);
+
     out.set(sector, {
-      sector,
-      prior: p.climate,
-      bottomUp,
-      climate,
-      members: a?.n ?? 0,
-      note: p.note,
+      sector, prior: p.climate, bottomUp, climate,
+      members: a?.n3 ?? 0, mom3m, mom1m, breadth, note: p.note,
     });
   }
   return out;

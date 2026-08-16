@@ -581,7 +581,9 @@ export async function computeRankings(): Promise<{ ranking: RankingEntry[]; usin
 
   // Koniunktura sektorow: prior strukturalny + oddolna srednia sila 3M spolek
   // danego sektora z uniwersum. Liczona RAZ, wspoldzielona przez spolki sektora.
-  const climates = computeSectorClimates(fetched.map((f) => ({ sector: f.sector, r3m: f.quote?.r3m ?? null })));
+  const climates = computeSectorClimates(
+    fetched.map((f) => ({ sector: f.sector, r1m: f.quote?.r1m ?? null, r3m: f.quote?.r3m ?? null })),
+  );
 
   // Przejscie 2: surowe sygnaly z koniunktura sektora danej spolki.
   const items: RankItem[] = fetched.map((f) => {

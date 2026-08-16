@@ -264,6 +264,21 @@ export async function initSchema(): Promise<void> {
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `;
+
+  // Analiza AI koniunktury sektora (Faza 23): atrakcyjnosc + zalety/zagrozenia.
+  await sql`
+    CREATE TABLE IF NOT EXISTS sector_analysis (
+      sector         TEXT PRIMARY KEY,
+      attractiveness INT NOT NULL,
+      verdict        TEXT NOT NULL,
+      summary        TEXT NOT NULL,
+      strengths      JSONB NOT NULL,
+      threats        JSONB NOT NULL,
+      drivers        JSONB NOT NULL,
+      model          TEXT,
+      updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `;
 }
 
 // ---------- Watchlist ----------
@@ -925,6 +940,63 @@ export async function addPortfolioPosition(
 
 export async function deletePortfolioPosition(id: number): Promise<void> {
   await sql`DELETE FROM portfolio WHERE id = ${id};`;
+}
+
+// ---------- Analiza AI koniunktury sektora (Faza 23) ----------
+
+/** Samonaprawa schematu — tabela tworzona na zadanie (bez recznego /api/init-db). */
+export async function ensureSectorAnalysisSchema(): Promise<void> {
+  await sql`
+    CREATE TABLE IF NOT EXISTS sector_analysis (
+      sector         TEXT PRIMARY KEY,
+      attractiveness INT NOT NULL,
+      verdict        TEXT NOT NULL,
+      summary        TEXT NOT NULL,
+      strengths      JSONB NOT NULL,
+      threats        JSONB NOT NULL,
+      drivers        JSONB NOT NULL,
+      model          TEXT,
+      updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `;
+}
+
+export interface SectorAnalysisRow {
+  sector: string;
+  attractiveness: number;
+  verdict: string;
+  summary: string;
+  strengths: string[];
+  threats: string[];
+  drivers: { label: string; value: string }[];
+  model: string | null;
+  updatedAt: string;
+}
+
+export async function upsertSectorAnalysis(
+  a: Omit<SectorAnalysisRow, "updatedAt">,
+): Promise<void> {
+  await sql`
+    INSERT INTO sector_analysis (sector, attractiveness, verdict, summary, strengths, threats, drivers, model, updated_at)
+    VALUES (${a.sector}, ${a.attractiveness}, ${a.verdict}, ${a.summary},
+      ${JSON.stringify(a.strengths)}::jsonb, ${JSON.stringify(a.threats)}::jsonb,
+      ${JSON.stringify(a.drivers)}::jsonb, ${a.model}, now())
+    ON CONFLICT (sector) DO UPDATE SET
+      attractiveness = EXCLUDED.attractiveness, verdict = EXCLUDED.verdict,
+      summary = EXCLUDED.summary, strengths = EXCLUDED.strengths, threats = EXCLUDED.threats,
+      drivers = EXCLUDED.drivers, model = EXCLUDED.model, updated_at = now();
+  `;
+}
+
+export async function getSectorAnalyses(): Promise<Record<string, SectorAnalysisRow>> {
+  const { rows } = await sql<SectorAnalysisRow>`
+    SELECT sector, attractiveness, verdict, summary, strengths, threats, drivers, model,
+      to_char(updated_at, 'YYYY-MM-DD"T"HH24:MI') AS "updatedAt"
+    FROM sector_analysis;
+  `;
+  const map: Record<string, SectorAnalysisRow> = {};
+  for (const r of rows) map[r.sector] = r;
+  return map;
 }
 
 // ---------- Koniunktura makro (Faza 15) ----------
