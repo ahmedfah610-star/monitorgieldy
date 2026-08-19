@@ -27,7 +27,6 @@ import type { RankingComponent, RankingEntry, Market } from "./types";
  * wzglednego.
  */
 const HORIZON_DAYS = 180;
-const WINSOR = 2.5; // ograniczenie z-score
 const SPREAD = 0.9; // skala mapowania Φ (mniejsza => wiekszy rozrzut)
 
 // Cel: "najlepsza spolka do KUPNA na dzis" = najwyzsza oczekiwana stopa zwrotu od
@@ -80,15 +79,85 @@ function median(xs: number[]): number {
   if (n === 0) return 0;
   return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
 }
-function mad(xs: number[], med: number): number {
-  return median(xs.map((x) => Math.abs(x - med)));
-}
-function stdev(xs: number[], mean: number): number {
-  if (xs.length < 2) return 0;
-  return Math.sqrt(xs.reduce((a, x) => a + (x - mean) ** 2, 0) / (xs.length - 1));
-}
 function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
+}
+
+// Odwrotna dystrybuanta normalna (Acklam) — do normal-scores (rankit).
+function invNormCdf(p: number): number {
+  if (p <= 0) return -3.5;
+  if (p >= 1) return 3.5;
+  const a = [-3.969683028665376e1, 2.209460984245205e2, -2.759285104469687e2, 1.38357751867269e2, -3.066479806614716e1, 2.506628277459239];
+  const b = [-5.447609879822406e1, 1.615858368580409e2, -1.556989798598866e2, 6.680131188771972e1, -1.328068155288572e1];
+  const c = [-7.784894002430293e-3, -3.223964580411365e-1, -2.400758277161838, -2.549732539343734, 4.374664141464968, 2.938163982698783];
+  const d = [7.784695709041462e-3, 3.224671290700398e-1, 2.445134137142996, 3.754408661907416];
+  const pl = 0.02425;
+  if (p < pl) {
+    const q = Math.sqrt(-2 * Math.log(p));
+    return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+  }
+  if (p <= 1 - pl) {
+    const q = p - 0.5, r = q * q;
+    return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+  }
+  const q = Math.sqrt(-2 * Math.log(1 - p));
+  return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+}
+
+/**
+ * Normal-scores (rankit): każdej wartości przypisuje wynik wg RANGI w grupie,
+ * mapowanej przez odwrotną dystrybuantę normalną. Rozkłada równomiernie, znosi
+ * saturację outlierów (jeden skrajny wskaźnik nie dominuje, brak remisów na sufcie).
+ * null -> null. Remisy dostają średnią rangę.
+ */
+function rankScores(vals: (number | null)[]): (number | null)[] {
+  const pairs = vals
+    .map((v, i) => [v, i] as [number | null, number])
+    .filter((p): p is [number, number] => p[0] !== null && Number.isFinite(p[0]));
+  const m = pairs.length;
+  const out: (number | null)[] = vals.map(() => null);
+  if (m === 0) return out;
+  if (m === 1) {
+    out[pairs[0][1]] = 0;
+    return out;
+  }
+  pairs.sort((a, b) => a[0] - b[0]);
+  let i = 0;
+  while (i < m) {
+    let j = i;
+    while (j + 1 < m && pairs[j + 1][0] === pairs[i][0]) j++;
+    const avgPos = (i + j) / 2; // 0-based środek grupy remisów
+    const z = invNormCdf((avgPos + 0.5) / m);
+    for (let k = i; k <= j; k++) out[pairs[k][1]] = z;
+    i = j + 1;
+  }
+  return out;
+}
+
+/**
+ * Normal-scores liczone WZGLĘDEM SEKTORA (gdy sektor ma >=MIN_SECTOR_N spółek),
+ * inaczej globalnie. Zwraca wynik per pozycja items.
+ */
+function sectorRankScores(items: RankItem[], getVal: (it: RankItem) => number | null): (number | null)[] {
+  const out = rankScores(items.map(getVal));
+  const groups = new Map<string, number[]>();
+  items.forEach((it, i) => {
+    const v = getVal(it);
+    if (v !== null && Number.isFinite(v)) {
+      const sec = it.sector ?? "Inna";
+      const arr = groups.get(sec) ?? [];
+      arr.push(i);
+      groups.set(sec, arr);
+    }
+  });
+  for (const [, idxs] of groups) {
+    if (idxs.length < MIN_SECTOR_N) continue; // za mało w sektorze — zostaje globalny
+    const sub = rankScores(idxs.map((i) => getVal(items[i])));
+    idxs.forEach((gi, k) => {
+      out[gi] = sub[k];
+    });
+  }
+  return out;
 }
 // dystrybuanta normalna przez przyblizenie erf (Abramowitz-Stegun 7.1.26)
 function erf(x: number): number {
@@ -350,51 +419,9 @@ function liquidityMult(turnover: number | null | undefined, marketCap: number | 
   return 1;
 }
 
-/** Sektorowo-wzgledny z-score dla wartosci pobieranej z RankItem (fallback globalny). */
-function sectorRelZ(items: RankItem[], getVal: (it: RankItem) => number | null): (number | null)[] {
-  const gstat = robustStat(items.map(getVal).filter((v): v is number => v !== null && Number.isFinite(v)));
-  const bySector = new Map<string, number[]>();
-  for (const it of items) {
-    const v = getVal(it);
-    if (v === null || !Number.isFinite(v)) continue;
-    const sec = it.sector ?? "Inna";
-    const arr = bySector.get(sec) ?? [];
-    arr.push(v);
-    bySector.set(sec, arr);
-  }
-  const sstat = new Map<string, { med: number; scale: number }>();
-  for (const [sec, vals] of bySector) {
-    if (vals.length >= MIN_SECTOR_N) {
-      const st = robustStat(vals);
-      if (st && st.scale > 0) sstat.set(sec, st);
-    }
-  }
-  return items.map((it) => {
-    const v = getVal(it);
-    if (v === null || !Number.isFinite(v)) return null;
-    const st = sstat.get(it.sector ?? "Inna") ?? gstat;
-    if (!st || st.scale <= 0) return 0;
-    return clamp((v - st.med) / st.scale, -WINSOR, WINSOR);
-  });
-}
-
-/** Odporne statystyki (mediana + skala z MAD, fallback na odch. std). */
-function robustStat(vals: number[]): { med: number; scale: number } | null {
-  if (vals.length < 2) return null;
-  const med = median(vals);
-  let scale = 1.4826 * mad(vals, med);
-  if (scale === 0) {
-    const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
-    scale = stdev(vals, mean);
-  }
-  return { med, scale };
-}
-
 // Wskazniki wyceny sa STRUKTURALNIE rozne miedzy branzami (banki C/Z ~8-12, tech
-// ~30-50). Standaryzacja globalna karalaby tech i nagradzala banki bez zwiazku z
-// realnym niedowartosciowaniem. Dlatego "value" standaryzujemy WZGLEDEM SEKTORA
-// (gdy sektor ma >=3 spolki z danymi), inaczej globalnie.
-// "value" jest liczone osobno (kompozyt E/P + EBITDA/EV + B/P), wiec nie ma go tu.
+// ~30-50). Dlatego "value", "quality" i "risk" rankujemy WZGLEDEM SEKTORA (gdy
+// sektor ma >=MIN_SECTOR_N spolek z danymi), inaczej globalnie.
 const SECTOR_RELATIVE = new Set(["quality", "risk"]);
 const MIN_SECTOR_N = 3;
 
@@ -452,47 +479,27 @@ function buildConclusion(
   return { verdict, pros, cons, note: notes.length ? notes.join(" · ") : null };
 }
 
-/** Buduje ranking z surowych sygnalow: standaryzacja przekrojowa + agregacja. */
+/** Buduje ranking z surowych sygnalow: standaryzacja RANGOWA + agregacja. */
 export function buildRanking(items: RankItem[]): RankingEntry[] {
-  // Statystyki odpornosciowe per skladowa (globalnie, na zbiorze spolek).
-  const stat: Record<string, { med: number; scale: number } | null> = {};
+  // Standaryzacja RANGOWA (normal-scores) per skladowa. Rozklada rownomiernie i
+  // znosi saturacje outlierow (skos ROE nie tworzy juz "zatoru" tuzina spolek na
+  // sufcie ±2.5σ) — dzieki temu ranking realnie rozroznia czolowke.
+  const scores: Record<string, (number | null)[]> = {};
   for (const key of KEYS) {
-    const vals = items.map((it) => it.raw[key]?.value).filter((v): v is number => v !== null && Number.isFinite(v));
-    stat[key] = robustStat(vals);
+    if (key === "value") continue;
+    const raws = items.map((it) => it.raw[key]?.value ?? null);
+    scores[key] = SECTOR_RELATIVE.has(key)
+      ? sectorRankScores(items, (it) => it.raw[key]?.value ?? null)
+      : rankScores(raws);
   }
 
-  // Statystyki WEWNATRZ-SEKTOROWE dla wskaznikow sektorowo-wzglednych (wycena).
-  const sectorStat: Record<string, Map<string, { med: number; scale: number }>> = {};
-  for (const key of SECTOR_RELATIVE) {
-    const bySector = new Map<string, number[]>();
-    for (const it of items) {
-      const v = it.raw[key]?.value;
-      if (v === null || v === undefined || !Number.isFinite(v)) continue;
-      const sec = it.sector ?? "Inna";
-      const arr = bySector.get(sec) ?? [];
-      arr.push(v as number);
-      bySector.set(sec, arr);
-    }
-    const m = new Map<string, { med: number; scale: number }>();
-    for (const [sec, vals] of bySector) {
-      if (vals.length >= MIN_SECTOR_N) {
-        const st = robustStat(vals);
-        if (st && st.scale > 0) m.set(sec, st);
-      }
-    }
-    sectorStat[key] = m;
-  }
-
-  // KOMPOZYT WYCENY: trzy miary (E/P, EBITDA/EV, B/P), kazda standaryzowana
-  // sektorowo-wzglednie, usredniona po dostepnych. To analityczny standard —
-  // jedna miara myli (C/Z zawodzi przy zadluzeniu; EV/EBITDA to koryguje).
-  const zEP = sectorRelZ(items, (it) => (it.valuation?.pe && it.valuation.pe > 0 ? 1 / it.valuation.pe : null));
-  const zEV = sectorRelZ(items, (it) => (it.valuation?.evEbitda && it.valuation.evEbitda > 0 ? 1 / it.valuation.evEbitda : null));
-  const zBP = sectorRelZ(items, (it) => (it.valuation?.pbv && it.valuation.pbv > 0 ? 1 / it.valuation.pbv : null));
-  // Soczewka BANKOWA: ROE / C-WK. Bank z wysokim ROE, ale niskim C/WK jest
-  // niedowartościowany (rynek nie wycenia rentowności) — standard analizy banków,
-  // ktore stanowia ~40% WIG. Tylko dla sektora "Bankowość"; standaryzowane w grupie.
-  const zBank = sectorRelZ(items, (it) =>
+  // KOMPOZYT WYCENY: trzy miary (E/P, EBITDA/EV, B/P) + soczewka bankowa (ROE/C-WK),
+  // kazda rankowana sektorowo-wzglednie, usredniona po dostepnych. Jedna miara myli
+  // (C/Z zawodzi przy zadluzeniu; EV/EBITDA to koryguje).
+  const zEP = sectorRankScores(items, (it) => (it.valuation?.pe && it.valuation.pe > 0 ? 1 / it.valuation.pe : null));
+  const zEV = sectorRankScores(items, (it) => (it.valuation?.evEbitda && it.valuation.evEbitda > 0 ? 1 / it.valuation.evEbitda : null));
+  const zBP = sectorRankScores(items, (it) => (it.valuation?.pbv && it.valuation.pbv > 0 ? 1 / it.valuation.pbv : null));
+  const zBank = sectorRankScores(items, (it) =>
     it.sector === "Bankowość" && it.valuation?.roe !== null && it.valuation?.roe !== undefined &&
     it.valuation?.pbv && it.valuation.pbv > 0
       ? it.valuation.roe / it.valuation.pbv
@@ -507,22 +514,9 @@ export function buildRanking(items: RankItem[]): RankingEntry[] {
     const components: RankingComponent[] = KEYS.map((key) => {
       const raw = it.raw[key] ?? { value: null, detail: "brak" };
       const w = WEIGHTS[key];
-      // Wycena: uzyj gotowego kompozytu (nie standaryzuj pojedynczej miary).
-      if (key === "value") {
-        const z = valueZ[idx];
-        if (z === null) return { key, label: LABELS[key], score: null, weight: w, detail: raw.detail };
-        const sigma = `${z >= 0 ? "+" : ""}${z.toFixed(1)}σ vs sektor`;
-        return { key, label: LABELS[key], score: z, weight: w, detail: `${raw.detail} · ${sigma}` };
-      }
-      if (raw.value === null) return { key, label: LABELS[key], score: null, weight: w, detail: raw.detail };
-      let st = stat[key];
-      let relNote = "";
-      if (SECTOR_RELATIVE.has(key)) {
-        const ss = sectorStat[key]?.get(it.sector ?? "Inna");
-        if (ss) { st = ss; relNote = " vs sektor"; }
-      }
-      let z = 0;
-      if (st && st.scale > 0) z = clamp((raw.value - st.med) / st.scale, -WINSOR, WINSOR);
+      const z = key === "value" ? valueZ[idx] : (scores[key]?.[idx] ?? null);
+      if (z === null) return { key, label: LABELS[key], score: null, weight: w, detail: raw.detail };
+      const relNote = key === "value" || SECTOR_RELATIVE.has(key) ? " vs sektor" : "";
       const sigma = `${z >= 0 ? "+" : ""}${z.toFixed(1)}σ${relNote}`;
       return { key, label: LABELS[key], score: z, weight: w, detail: `${raw.detail} · ${sigma}` };
     });
