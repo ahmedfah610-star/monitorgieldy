@@ -402,21 +402,24 @@ function isStateControlled(ticker: string): boolean {
   return STATE_CONTROLLED.has(ticker.trim().toLowerCase());
 }
 
-// Filtr plynnosci: nieplynne spolki sa zaszumione (pulapki wartosci), wiec ich
-// wynik ciagniemy ku neutralnemu. Bierzemy REALNY obrot (wolumen×cena) — lepszy
-// niz sama kapitalizacja (spolka moze byc duza, ale malo handlowana). Pelne
-// zaufanie od ~5 mln/dzien; gdy brak obrotu, fallback na kapitalizacje (~2 mld).
-const TURNOVER_FULL = 5e6;
-const CAP_FULL = 2e9;
-const LIQ_FLOOR = 0.65;
+// Filtr plynnosci/wielkosci: nieplynne, male spolki sa zaszumione (pulapki
+// wartosci) — mocno ciagniemy ich wynik ku neutralnemu, by nie dominowaly
+// czolowki. Spolka musi miec JEDNOCZESNIE przyzwoity obrot ORAZ wielkosc (bierzemy
+// slabszy z dwoch mnoznikow) — sam duzy kapital nie wystarczy, gdy handel jest
+// znikomy. Pelne zaufanie od ~8 mln obrotu/dzien i ~3 mld kapitalizacji; podloga
+// 0.45 (bardzo maly walor traci ~55% sily sygnalu).
+const TURNOVER_FULL = 8e6;
+const CAP_FULL = 3e9;
+const LIQ_FLOOR = 0.45;
 function liquidityMult(turnover: number | null | undefined, marketCap: number | null | undefined): number {
-  if (turnover !== null && turnover !== undefined && turnover > 0) {
-    return clamp(turnover / TURNOVER_FULL, LIQ_FLOOR, 1);
-  }
-  if (marketCap !== null && marketCap !== undefined && marketCap > 0) {
-    return clamp(marketCap / CAP_FULL, LIQ_FLOOR, 1);
-  }
-  return 1;
+  const t = turnover !== null && turnover !== undefined && turnover > 0
+    ? clamp(turnover / TURNOVER_FULL, LIQ_FLOOR, 1)
+    : null;
+  const c = marketCap !== null && marketCap !== undefined && marketCap > 0
+    ? clamp(marketCap / CAP_FULL, LIQ_FLOOR, 1)
+    : null;
+  if (t !== null && c !== null) return Math.min(t, c);
+  return t ?? c ?? 1;
 }
 
 // Wskazniki wyceny sa STRUKTURALNIE rozne miedzy branzami (banki C/Z ~8-12, tech
