@@ -3,6 +3,8 @@ import Link from "next/link";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { NavBar } from "@/components/NavBar";
+import { IndexTicker } from "@/components/IndexTicker";
+import { BottomNav } from "@/components/BottomNav";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -46,12 +48,15 @@ export default function RootLayout({
               </div>
             </div>
             <NavBar />
+            <IndexTicker />
           </div>
         </header>
 
-        <div className="mx-auto max-w-6xl px-4 py-8">{children}</div>
+        <div className="mx-auto max-w-6xl px-4 py-6 pb-24 sm:py-8 sm:pb-8">{children}</div>
 
-        <footer className="mx-auto mt-10 max-w-6xl px-4 pb-10">
+        <BottomNav />
+
+        <footer className="mx-auto mt-10 hidden max-w-6xl px-4 pb-10 sm:block">
           <div className="flex flex-col gap-1 border-t border-white/[0.06] pt-5 text-xs text-neutral-600">
             <span>
               <span className="font-semibold text-neutral-400">MarketScope</span> — profesjonalny dashboard rynkowy.

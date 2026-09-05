@@ -13,10 +13,12 @@
 body {
   @apply font-sans text-neutral-100 antialiased;
   min-height: 100vh;
-  /* Warstwowa poswiata — glebia jak w terminalu handlowym, bez halasu. */
+  /* Warstwowa poswiata + delikatna siatka — glebia jak w terminalu handlowym. */
   background:
-    radial-gradient(1100px 600px at 50% -12%, rgb(var(--accent) / 0.09), transparent 60%),
-    radial-gradient(760px 420px at 100% -5%, rgb(99 102 241 / 0.06), transparent 55%),
+    radial-gradient(1200px 640px at 50% -14%, rgb(var(--accent) / 0.12), transparent 60%),
+    radial-gradient(820px 460px at 100% -6%, rgb(139 92 246 / 0.08), transparent 55%),
+    radial-gradient(700px 500px at 0% 10%, rgb(6 182 212 / 0.05), transparent 55%),
+    linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px) 0 0 / 100% 44px,
     var(--bg);
   background-attachment: fixed;
 }
@@ -54,15 +56,21 @@ table {
 }
 
 @layer components {
-  /* Powierzchnie */
+  /* Powierzchnie — szklane, z gradientem i wewnetrznym rozswietleniem (glebia). */
   .card {
-    @apply rounded-xl border border-white/[0.07] bg-white/[0.02];
+    @apply rounded-2xl border border-white/[0.08];
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 10px 30px -20px rgba(0, 0, 0, 0.8);
   }
   .card-hover {
-    @apply transition-colors hover:border-white/[0.14] hover:bg-white/[0.035];
+    @apply transition duration-200 hover:border-white/[0.16];
+  }
+  .card-hover:hover {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 16px 40px -22px rgba(37, 99, 235, 0.35);
   }
   .surface-2 {
-    @apply rounded-lg border border-white/[0.06] bg-white/[0.025];
+    @apply rounded-xl border border-white/[0.06];
+    background: rgba(255, 255, 255, 0.025);
   }
 
   /* Przyciski */

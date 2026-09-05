@@ -106,7 +106,11 @@ export default function DashboardPage() {
       {quotes && (
         <>
           <Section title="Indeksy">
-            <QuotesTable quotes={quotes.indices} />
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+              {quotes.indices.map((q) => (
+                <IndexTile key={q.symbol} label={q.label} symbol={q.symbol} close={q.close} changePct={q.changePct} currency={q.currency} />
+              ))}
+            </div>
           </Section>
           <div className="grid gap-8 lg:grid-cols-2">
             <Section title="Rynek PL (GPW)">
@@ -180,6 +184,33 @@ export default function DashboardPage() {
         Narzędzie informacyjne, nie doradztwo inwestycyjne.
       </p>
     </main>
+  );
+}
+
+function IndexTile({ label, symbol, close, changePct, currency }: {
+  label: string; symbol: string; close: number | null; changePct: number | null; currency: string | null;
+}) {
+  const up = (changePct ?? 0) > 0;
+  const down = (changePct ?? 0) < 0;
+  return (
+    <div className="card card-hover relative overflow-hidden p-3.5">
+      <div
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-1"
+        style={{ background: up ? "linear-gradient(90deg,transparent,rgb(16 185 129))" : down ? "linear-gradient(90deg,transparent,rgb(244 63 94))" : "transparent" }}
+      />
+      <div className="flex items-start justify-between gap-2">
+        <span className="truncate text-xs font-semibold text-neutral-200">{label}</span>
+        <span className={`badge ${up ? "badge-pos" : down ? "badge-neg" : "badge-neutral"} shrink-0`}>
+          {up ? "▲" : down ? "▼" : "–"} {changePct == null ? "—" : `${Math.abs(changePct).toFixed(2)}%`}
+        </span>
+      </div>
+      <div className="mt-2 text-xl font-bold tabular-nums text-neutral-50">
+        {close == null ? "—" : close.toLocaleString("pl-PL", { maximumFractionDigits: 2 })}
+      </div>
+      <div className="mt-0.5 font-mono text-[10px] uppercase text-neutral-600">
+        {symbol}{currency ? ` · ${currency}` : ""}
+      </div>
+    </div>
   );
 }
 
