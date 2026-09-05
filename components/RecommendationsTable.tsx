@@ -4,7 +4,7 @@ import { fmtPrice } from "@/lib/format";
 function sentimentClass(s: Recommendation["sentiment"]): string {
   if (s === "positive") return "text-up";
   if (s === "negative") return "text-down";
-  return "text-neutral-300";
+  return "text-neutral-700";
 }
 
 export function RecommendationsTable({
@@ -19,10 +19,10 @@ export function RecommendationsTable({
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-neutral-800">
+    <div className="overflow-x-auto rounded-lg border border-neutral-200">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-neutral-800 text-left text-neutral-400">
+          <tr className="border-b border-neutral-200 text-left text-neutral-600">
             <th className="px-3 py-2 font-medium">Data</th>
             {showCompany && <th className="px-3 py-2 font-medium">Spółka</th>}
             <th className="px-3 py-2 font-medium">Ocena</th>
@@ -34,11 +34,11 @@ export function RecommendationsTable({
           {recs.map((r, i) => (
             <tr
               key={`${r.source}:${r.symbol}:${r.recDate}:${r.broker ?? ""}:${i}`}
-              className="border-b border-neutral-900 last:border-0 hover:bg-neutral-900/50"
+              className="border-b border-neutral-200 last:border-0 hover:bg-neutral-50"
             >
-              <td className="px-3 py-2 whitespace-nowrap text-neutral-400">{r.recDate ?? "—"}</td>
+              <td className="px-3 py-2 whitespace-nowrap text-neutral-600">{r.recDate ?? "—"}</td>
               {showCompany && (
-                <td className="px-3 py-2 font-mono text-neutral-300">{r.symbol}</td>
+                <td className="px-3 py-2 font-mono text-neutral-700">{r.symbol}</td>
               )}
               <td className={`px-3 py-2 font-medium ${sentimentClass(r.sentiment)}`}>
                 {r.rating ?? "—"}
@@ -55,7 +55,7 @@ export function RecommendationsTable({
                   "—"
                 )}
               </td>
-              <td className="px-3 py-2 text-neutral-400">
+              <td className="px-3 py-2 text-neutral-600">
                 {r.broker ?? (r.source === "finnhub" ? "Finnhub (konsensus)" : "—")}
               </td>
             </tr>

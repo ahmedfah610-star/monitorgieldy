@@ -10,7 +10,7 @@ export function QuotesTable({ quotes }: { quotes: Quote[] }) {
     <div className="card overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-white/[0.07] text-left text-[11px] uppercase tracking-wide text-neutral-500">
+          <tr className="border-b border-neutral-200 text-left text-[11px] uppercase tracking-wide text-neutral-500">
             <th className="px-3 py-2.5 font-medium">Nazwa</th>
             <th className="px-3 py-2.5 font-medium">Symbol</th>
             <th className="px-3 py-2.5 text-right font-medium">Kurs</th>
@@ -25,13 +25,13 @@ export function QuotesTable({ quotes }: { quotes: Quote[] }) {
             return (
               <tr
                 key={`${q.market}:${q.symbol}`}
-                className="border-b border-white/[0.04] transition-colors last:border-0 hover:bg-white/[0.025]"
+                className="border-b border-neutral-100 transition-colors last:border-0 hover:bg-neutral-50"
               >
-                <td className="px-3 py-2.5 font-medium text-neutral-100">{q.label}</td>
+                <td className="px-3 py-2.5 font-medium text-neutral-900">{q.label}</td>
                 <td className="px-3 py-2.5 font-mono text-xs text-neutral-500">{q.symbol}</td>
-                <td className="px-3 py-2.5 text-right tabular-nums text-neutral-100">
+                <td className="px-3 py-2.5 text-right tabular-nums text-neutral-900">
                   {q.error ? (
-                    <span className="text-xs text-amber-500" title={q.error}>
+                    <span className="text-xs text-amber-600" title={q.error}>
                       b/d
                     </span>
                   ) : (

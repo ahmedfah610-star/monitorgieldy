@@ -18,10 +18,10 @@ interface RefreshSummary {
 
 function DirBadge({ d }: { d: HoldingNotification["direction"] }) {
   if (d === "increase")
-    return <span className="rounded border border-emerald-800 bg-emerald-950 px-2 py-0.5 text-xs font-medium text-emerald-300">Wejście / zwiększenie</span>;
+    return <span className="rounded border border-emerald-800 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">Wejście / zwiększenie</span>;
   if (d === "decrease")
-    return <span className="rounded border border-red-900 bg-red-950 px-2 py-0.5 text-xs font-medium text-red-300">Wyjście / zmniejszenie</span>;
-  return <span className="rounded border border-neutral-700 bg-neutral-800 px-2 py-0.5 text-xs font-medium text-neutral-300">Zmiana</span>;
+    return <span className="rounded border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700">Wyjście / zmniejszenie</span>;
+  return <span className="rounded border border-neutral-300 bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-700">Zmiana</span>;
 }
 
 function Row({ n }: { n: HoldingNotification }) {
@@ -31,15 +31,15 @@ function Row({ n }: { n: HoldingNotification }) {
       <span className="w-24 shrink-0 text-xs tabular-nums text-neutral-500">{date}</span>
       <DirBadge d={n.direction} />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm text-neutral-100">
-          {n.holder ?? <span className="text-neutral-400">podmiot w treści</span>}
+        <p className="truncate text-sm text-neutral-900">
+          {n.holder ?? <span className="text-neutral-600">podmiot w treści</span>}
           {n.pctAfter !== null && (
-            <span className="text-neutral-400"> · po: {n.pctAfter.toLocaleString("pl-PL")}% głosów</span>
+            <span className="text-neutral-600"> · po: {n.pctAfter.toLocaleString("pl-PL")}% głosów</span>
           )}
         </p>
         <p className="truncate text-xs text-neutral-500">
           {n.company ?? n.watchTicker ?? "—"}
-          {n.watchTicker && <span className="text-neutral-600"> ({n.watchTicker})</span>}
+          {n.watchTicker && <span className="text-neutral-500"> ({n.watchTicker})</span>}
           {n.thresholds.length > 0 && (
             <span className="text-neutral-500"> · progi: {n.thresholds.map((t) => `${t}%`).join(", ")}</span>
           )}
@@ -103,7 +103,7 @@ export default function HoldingsPage() {
     <main className="space-y-6">
       <div className="card flex flex-wrap items-center justify-between gap-3 p-5">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-neutral-50">Znaczne pakiety (art. 69)</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Znaczne pakiety (art. 69)</h1>
           <p className="max-w-2xl text-xs text-neutral-500">
             Wejścia i wyjścia dużych akcjonariuszy Twoich spółek — zawiadomienia o przekroczeniu
             progów 5/10/…% (art. 69 ustawy o ofercie). Kierunek i progi z tytułu komunikatu;
@@ -120,25 +120,25 @@ export default function HoldingsPage() {
       </div>
 
       {view && !view.usingDb && (
-        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-700">
           Baza nie jest skonfigurowana — wymaga Vercel Postgres. Ustaw <code>POSTGRES_URL</code> i
           uruchom <code>/api/init-db</code>.
         </div>
       )}
 
       {error && (
-        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-700">
           Błąd: {error}
         </div>
       )}
 
       {summary && (
-        <div className="rounded-md border border-neutral-800 bg-neutral-900/50 px-4 py-3 text-sm">
-          <p className="text-neutral-200">
+        <div className="rounded-md border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm">
+          <p className="text-neutral-800">
             Przetworzono {summary.processed} nowych zawiadomień, dodano{" "}
             <span className="font-semibold text-up">{summary.inserted}</span>.
             {summary.pending > 0 && (
-              <span className="text-neutral-400"> Pozostało {summary.pending} — odśwież ponownie.</span>
+              <span className="text-neutral-600"> Pozostało {summary.pending} — odśwież ponownie.</span>
             )}
           </p>
           {summary.errors.length > 0 && (
@@ -161,14 +161,14 @@ export default function HoldingsPage() {
       )}
 
       {view && view.notifications.length > 0 && (
-        <ul className="divide-y divide-neutral-900 rounded-lg border border-neutral-800">
+        <ul className="divide-y divide-neutral-200 rounded-lg border border-neutral-200">
           {view.notifications.map((n, i) => (
             <Row key={`${n.url}:${i}`} n={n} />
           ))}
         </ul>
       )}
 
-      <p className="text-[10px] text-neutral-600">
+      <p className="text-[10px] text-neutral-500">
         Dane z komunikatów ESPI (bankier.pl) — narzędzie informacyjne, nie doradztwo inwestycyjne.
         Dokładne wartości warto zweryfikować w oryginalnym zawiadomieniu.
       </p>

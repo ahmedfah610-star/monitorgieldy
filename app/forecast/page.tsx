@@ -15,24 +15,24 @@ function pct(v: number | null, withSign = true): string {
 }
 
 function growthColor(v: number): string {
-  return v > 0.005 ? "text-up" : v < -0.005 ? "text-down" : "text-neutral-300";
+  return v > 0.005 ? "text-up" : v < -0.005 ? "text-down" : "text-neutral-700";
 }
 
 function ConfBadge({ c }: { c: CompanyForecast["confidence"] }) {
   const cls =
     c === "wysoka"
-      ? "border-emerald-800 bg-emerald-950/50 text-emerald-300"
+      ? "border-emerald-800 bg-emerald-50 text-emerald-700"
       : c === "średnia"
-        ? "border-amber-900 bg-amber-950/50 text-amber-300"
-        : "border-neutral-700 bg-neutral-800 text-neutral-400";
+        ? "border-amber-200 bg-amber-50 text-amber-700"
+        : "border-neutral-300 bg-neutral-100 text-neutral-600";
   return <span className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${cls}`}>pewność: {c}</span>;
 }
 
 function Factor({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-md border border-neutral-800 bg-neutral-900/40 px-2.5 py-2" title={hint}>
+    <div className="rounded-md border border-neutral-200 bg-neutral-50 px-2.5 py-2" title={hint}>
       <p className="text-[10px] uppercase tracking-wide text-neutral-500">{label}</p>
-      <p className="text-sm text-neutral-200">{value}</p>
+      <p className="text-sm text-neutral-800">{value}</p>
     </div>
   );
 }
@@ -41,11 +41,11 @@ function Card({ f }: { f: CompanyForecast }) {
   const rev = (v: number | null) =>
     v === null ? "—" : v.toLocaleString("pl-PL") + (f.unit ? ` ${f.unit}` : "") + (f.currency ? ` ${f.currency}` : "");
   return (
-    <section className="space-y-3 rounded-lg border border-neutral-800 p-4">
+    <section className="space-y-3 rounded-lg border border-neutral-200 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-200">
-          {f.company} <span className="text-neutral-600">({f.ticker})</span>
-          <span className="ml-1.5 rounded border border-neutral-700 px-1.5 py-0.5 text-[10px] font-normal normal-case text-neutral-400">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-800">
+          {f.company} <span className="text-neutral-500">({f.ticker})</span>
+          <span className="ml-1.5 rounded border border-neutral-300 px-1.5 py-0.5 text-[10px] font-normal normal-case text-neutral-600">
             {f.sector}
           </span>
         </h2>
@@ -58,16 +58,16 @@ function Card({ f }: { f: CompanyForecast }) {
         <div>
           <p className="text-[10px] uppercase tracking-wide text-neutral-500">Prognozowana dynamika przychodów</p>
           <p className={`text-2xl font-bold tabular-nums ${growthColor(f.projectedGrowth)}`}>{pct(f.projectedGrowth)}</p>
-          <p className="text-[10px] text-neutral-600">r/r</p>
+          <p className="text-[10px] text-neutral-500">r/r</p>
         </div>
         {f.lastRevenue !== null && (
           <div>
             <p className="text-[10px] uppercase tracking-wide text-neutral-500">
               Przychód: {f.period ?? "ost. okres"} → prognoza
             </p>
-            <p className="text-sm tabular-nums text-neutral-300">
-              {rev(f.lastRevenue)} <span className="text-neutral-600">→</span>{" "}
-              <span className="font-semibold text-neutral-100">{rev(f.projectedRevenue)}</span>
+            <p className="text-sm tabular-nums text-neutral-700">
+              {rev(f.lastRevenue)} <span className="text-neutral-500">→</span>{" "}
+              <span className="font-semibold text-neutral-900">{rev(f.projectedRevenue)}</span>
             </p>
           </div>
         )}
@@ -87,7 +87,7 @@ function Card({ f }: { f: CompanyForecast }) {
         />
       </div>
 
-      <p className="text-[10px] text-neutral-600">{f.note}</p>
+      <p className="text-[10px] text-neutral-500">{f.note}</p>
     </section>
   );
 }
@@ -119,7 +119,7 @@ export default function ForecastPage() {
     <main className="space-y-6">
       <div className="card flex flex-wrap items-center justify-between gap-3 p-5">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-neutral-50">Prognozy przychodów</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Prognozy przychodów</h1>
           <p className="max-w-2xl text-xs text-neutral-500">
             Szacunek MarketScope: prognozowana dynamika przychodów = <strong>trend firmy</strong> (z
             raportów) + <strong>typowa dynamika branży</strong> + <strong>korekta makro</strong>
@@ -137,14 +137,14 @@ export default function ForecastPage() {
       </div>
 
       {view && !view.usingDb && (
-        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-700">
           Wymaga bazy (Vercel Postgres). Najlepsze prognozy po analizie raportów (przycisk „Analizuj"
           na Raportach) i odświeżeniu sekcji Makro.
         </div>
       )}
 
       {error && (
-        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-700">
           Błąd: {error}
         </div>
       )}
@@ -161,7 +161,7 @@ export default function ForecastPage() {
         ))}
       </div>
 
-      <p className="text-[10px] text-neutral-600">
+      <p className="text-[10px] text-neutral-500">
         Model poglądowy: prognoza = 0,5·trend firmy + 0,35·branża + korekta makro (przycięta do
         rozsądnego zakresu). Najdokładniejszy, gdy spółka ma przeanalizowany raport i odświeżone makro.
         Narzędzie informacyjne, nie doradztwo inwestycyjne.

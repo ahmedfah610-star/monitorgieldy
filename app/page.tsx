@@ -71,8 +71,8 @@ export default function DashboardPage() {
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="eyebrow">Pulpit rynkowy</p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-50">Rynek dzisiaj</h1>
-            <p className="mt-1 text-sm text-neutral-400">
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900">Rynek dzisiaj</h1>
+            <p className="mt-1 text-sm text-neutral-600">
               Indeksy, notowania GPW i USA, najnowsze rekomendacje i raporty — w jednym miejscu.
             </p>
             {fetchedAt && (
@@ -88,13 +88,13 @@ export default function DashboardPage() {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-700">
           {error}
         </div>
       )}
 
       {dbEmpty && (
-        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-700">
           Baza nie jest skonfigurowana — sekcje rekomendacji i raportów są puste. Ustaw{" "}
           <code>POSTGRES_URL</code> i uruchom <code>/api/init-db</code>.
         </div>
@@ -129,7 +129,7 @@ export default function DashboardPage() {
           <RecommendationsTable recs={latestRecs} showCompany />
         ) : (
           <p className="text-sm text-neutral-500">
-            Brak. Wejdź na <Link href="/recommendations" className="text-blue-400 hover:underline">Rekomendacje</Link> i odśwież.
+            Brak. Wejdź na <Link href="/recommendations" className="text-blue-600 hover:underline">Rekomendacje</Link> i odśwież.
           </p>
         )}
       </Section>
@@ -137,9 +137,9 @@ export default function DashboardPage() {
       {/* --- Raporty + wnioski AI --- */}
       <Section title="Najnowsze raporty okresowe" href="/reports" hrefLabel="Wszystkie →">
         {latestReports.length > 0 ? (
-          <ul className="card divide-y divide-white/[0.05]">
+          <ul className="card divide-y divide-neutral-200">
             {latestReports.map((r, i) => (
-              <li key={`${r.url}:${i}`} className="flex flex-wrap items-center gap-3 px-3 py-2.5 transition-colors hover:bg-white/[0.02]">
+              <li key={`${r.url}:${i}`} className="flex flex-wrap items-center gap-3 px-3 py-2.5 transition-colors hover:bg-neutral-50">
                 <span className={`h-2 w-2 shrink-0 rounded-full ${REPORT_DOT[r.reportType] ?? "bg-neutral-400"}`} />
                 <span className="font-mono text-xs text-neutral-500">{r.watchTicker}</span>
                 <span className="text-xs text-neutral-500">{r.period}</span>
@@ -147,7 +147,7 @@ export default function DashboardPage() {
                   href={r.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 truncate text-sm text-neutral-200 hover:text-blue-400 hover:underline"
+                  className="flex-1 truncate text-sm text-neutral-800 hover:text-blue-400 hover:underline"
                 >
                   {r.title}
                 </a>
@@ -159,20 +159,20 @@ export default function DashboardPage() {
           </ul>
         ) : (
           <p className="text-sm text-neutral-500">
-            Brak. Wejdź na <Link href="/reports" className="text-blue-400 hover:underline">Raporty</Link> i odśwież.
+            Brak. Wejdź na <Link href="/reports" className="text-blue-600 hover:underline">Raporty</Link> i odśwież.
           </p>
         )}
 
         {conclusions.length > 0 && (
           <div className="mt-4 space-y-2">
-            <h3 className="text-sm font-medium text-indigo-300">Wnioski AI</h3>
+            <h3 className="text-sm font-medium text-indigo-700">Wnioski AI</h3>
             <div className="grid gap-3 md:grid-cols-2">
               {conclusions.map(([ticker, c]) => (
-                <div key={ticker} className="rounded-md border border-indigo-900/60 bg-indigo-950/30 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-indigo-300">
-                    {ticker} <span className="text-neutral-600">{c.period}</span>
+                <div key={ticker} className="rounded-md border border-indigo-200 bg-indigo-50 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">
+                    {ticker} <span className="text-neutral-500">{c.period}</span>
                   </p>
-                  <p className="mt-1 text-sm text-neutral-200">{c.text}</p>
+                  <p className="mt-1 text-sm text-neutral-800">{c.text}</p>
                 </div>
               ))}
             </div>
@@ -180,7 +180,7 @@ export default function DashboardPage() {
         )}
       </Section>
 
-      <p className="border-t border-neutral-900 pt-4 text-xs text-neutral-600">
+      <p className="border-t border-neutral-200 pt-4 text-xs text-neutral-500">
         Narzędzie informacyjne, nie doradztwo inwestycyjne.
       </p>
     </main>
@@ -199,15 +199,15 @@ function IndexTile({ label, symbol, close, changePct, currency }: {
         style={{ background: up ? "linear-gradient(90deg,transparent,rgb(16 185 129))" : down ? "linear-gradient(90deg,transparent,rgb(244 63 94))" : "transparent" }}
       />
       <div className="flex items-start justify-between gap-2">
-        <span className="truncate text-xs font-semibold text-neutral-200">{label}</span>
+        <span className="truncate text-xs font-semibold text-neutral-800">{label}</span>
         <span className={`badge ${up ? "badge-pos" : down ? "badge-neg" : "badge-neutral"} shrink-0`}>
           {up ? "▲" : down ? "▼" : "–"} {changePct == null ? "—" : `${Math.abs(changePct).toFixed(2)}%`}
         </span>
       </div>
-      <div className="mt-2 text-xl font-bold tabular-nums text-neutral-50">
+      <div className="mt-2 text-xl font-bold tabular-nums text-neutral-900">
         {close == null ? "—" : close.toLocaleString("pl-PL", { maximumFractionDigits: 2 })}
       </div>
-      <div className="mt-0.5 font-mono text-[10px] uppercase text-neutral-600">
+      <div className="mt-0.5 font-mono text-[10px] uppercase text-neutral-500">
         {symbol}{currency ? ` · ${currency}` : ""}
       </div>
     </div>
@@ -228,12 +228,12 @@ function Section({
   return (
     <section className="space-y-3">
       <div className="flex items-baseline justify-between">
-        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-neutral-300">
+        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-neutral-700">
           <span className="h-3.5 w-1 rounded-full bg-gradient-to-b from-blue-500 to-indigo-500" />
           {title}
         </h2>
         {href && (
-          <Link href={href} className="text-xs font-medium text-neutral-400 transition hover:text-blue-400">
+          <Link href={href} className="text-xs font-medium text-neutral-600 transition hover:text-blue-400">
             {hrefLabel ?? "Więcej →"}
           </Link>
         )}

@@ -26,7 +26,7 @@ function metricOf(r: ScreenerRow, m: Metric): { norm: number | null; text: strin
 }
 
 function tileStyle(norm: number | null): React.CSSProperties {
-  if (norm == null) return { background: "rgba(255,255,255,0.04)" };
+  if (norm == null) return { background: "rgba(15,23,42,0.05)" };
   const a = 0.12 + Math.min(0.78, Math.abs(norm) * 0.78);
   const c = norm >= 0 ? `16,185,129` : `244,63,94`;
   return { background: `rgba(${c},${a})` };
@@ -81,9 +81,9 @@ export default function HeatmapPage() {
         <div className="relative flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="eyebrow">Mapa rynku</p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-50">Heatmapa GPW</h1>
-            <p className="mt-1 max-w-2xl text-sm text-neutral-400">
-              Cały rynek na jeden rzut oka — kafle grupowane <strong className="text-neutral-200">sektorami</strong>,
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900">Heatmapa GPW</h1>
+            <p className="mt-1 max-w-2xl text-sm text-neutral-600">
+              Cały rynek na jeden rzut oka — kafle grupowane <strong className="text-neutral-800">sektorami</strong>,
               wielkość = kapitalizacja, kolor = wybrana metryka. Zielone rośnie, czerwone spada.
             </p>
           </div>
@@ -94,7 +94,7 @@ export default function HeatmapPage() {
             <button
               key={m.key}
               onClick={() => setMetric(m.key)}
-              className={`navpill border ${metric === m.key ? "border-blue-500/40 bg-blue-500/10 text-blue-200" : "border-white/10 text-neutral-400 hover:text-neutral-200"}`}
+              className={`navpill border ${metric === m.key ? "border-blue-500/40 bg-blue-500/10 text-blue-700" : "border-neutral-200 text-neutral-600 hover:text-neutral-200"}`}
             >
               {m.label}
             </button>
@@ -108,8 +108,8 @@ export default function HeatmapPage() {
         {groups.map((g) => (
           <section key={g.sector} className="card p-3">
             <div className="mb-2 flex items-baseline gap-2 px-1">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-300">{g.sector}</h2>
-              <span className="text-[10px] text-neutral-600">{g.items.length} · {(g.cap / 1e9).toFixed(0)} mld</span>
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-700">{g.sector}</h2>
+              <span className="text-[10px] text-neutral-500">{g.items.length} · {(g.cap / 1e9).toFixed(0)} mld</span>
             </div>
             <div className="flex flex-wrap gap-1">
               {g.items.map((r) => {
@@ -120,11 +120,11 @@ export default function HeatmapPage() {
                     key={r.ticker}
                     href="/ranking"
                     title={`${r.company} · kap. ${(r.marketCap ?? 0) / 1e9 >= 0.1 ? ((r.marketCap ?? 0) / 1e9).toFixed(1) + " mld" : "—"} · wynik ${r.score ?? "—"}`}
-                    className="group relative flex flex-col items-center justify-center overflow-hidden rounded-md ring-1 ring-inset ring-white/[0.06] transition hover:ring-white/25"
+                    className="group relative flex flex-col items-center justify-center overflow-hidden rounded-md ring-1 ring-inset ring-neutral-200 transition hover:ring-neutral-300"
                     style={{ width: d, height: Math.max(48, d * 0.66), ...tileStyle(norm) }}
                   >
-                    <span className="font-mono text-[11px] font-bold uppercase text-white/95 drop-shadow">{r.ticker}</span>
-                    <span className="text-[10px] font-medium text-white/85">{text}</span>
+                    <span className="font-mono text-[11px] font-bold uppercase text-neutral-900 drop-shadow">{r.ticker}</span>
+                    <span className="text-[10px] font-medium text-neutral-700">{text}</span>
                   </Link>
                 );
               })}
@@ -133,7 +133,7 @@ export default function HeatmapPage() {
         ))}
       </div>
 
-      <p className="text-[10px] text-neutral-600">
+      <p className="text-[10px] text-neutral-500">
         Wielkość kafla ∝ pierwiastek z kapitalizacji. Klik → Ranking. Narzędzie informacyjne, nie doradztwo inwestycyjne.
       </p>
     </main>

@@ -18,19 +18,19 @@ export default function RootLayout({
   return (
     <html lang="pl" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body>
-        <header className="sticky top-0 z-30 border-b border-white/[0.07] bg-[#08090c]/85 backdrop-blur-xl">
+        <header className="sticky top-0 z-30 border-b border-neutral-200 bg-white/80 backdrop-blur-xl">
           <div className="mx-auto max-w-6xl px-4">
             <div className="flex items-center justify-between gap-4 py-3">
               <Link href="/" className="group flex items-center gap-2.5">
-                <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/30 ring-1 ring-white/10 transition group-hover:shadow-blue-500/50">
+                <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/30 ring-1 ring-neutral-200 transition group-hover:shadow-blue-500/50">
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M3 17l5-5 4 3 7-8" />
                     <path d="M16 4h4v4" />
                   </svg>
                 </span>
                 <span className="flex flex-col leading-none">
-                  <span className="text-[15px] font-semibold tracking-tight text-neutral-50">
-                    Market<span className="text-blue-400">Scope</span>
+                  <span className="text-[15px] font-semibold tracking-tight text-neutral-900">
+                    Market<span className="text-blue-600">Scope</span>
                   </span>
                   <span className="mt-1 text-[10px] font-medium uppercase tracking-[0.16em] text-neutral-500">
                     GPW · USA · Makro
@@ -38,7 +38,7 @@ export default function RootLayout({
                 </span>
               </Link>
               <div className="hidden items-center gap-2 sm:flex">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-300">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
                   <span className="relative flex h-1.5 w-1.5">
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
                     <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
@@ -57,9 +57,9 @@ export default function RootLayout({
         <BottomNav />
 
         <footer className="mx-auto mt-10 hidden max-w-6xl px-4 pb-10 sm:block">
-          <div className="flex flex-col gap-1 border-t border-white/[0.06] pt-5 text-xs text-neutral-600">
+          <div className="flex flex-col gap-1 border-t border-neutral-200 pt-5 text-xs text-neutral-500">
             <span>
-              <span className="font-semibold text-neutral-400">MarketScope</span> — profesjonalny dashboard rynkowy.
+              <span className="font-semibold text-neutral-600">MarketScope</span> — profesjonalny dashboard rynkowy.
             </span>
             <span>
               Dane: GPW/bankier, KNF, World Bank, NBP, Yahoo Finance. Narzędzie informacyjne, nie doradztwo inwestycyjne.

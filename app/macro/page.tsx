@@ -10,22 +10,22 @@ interface View {
 }
 
 function scoreColor(score: number): string {
-  if (score >= 60) return "text-emerald-400";
-  if (score <= 40) return "text-red-400";
-  return "text-neutral-300";
+  if (score >= 60) return "text-emerald-600";
+  if (score <= 40) return "text-rose-600";
+  return "text-neutral-700";
 }
 
 function MarketCard({ m, flag, title }: { m: MarketMacro | null; flag: string; title: string }) {
   return (
-    <section className="space-y-3 rounded-lg border border-neutral-800 p-4">
+    <section className="space-y-3 rounded-lg border border-neutral-200 p-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-300">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-700">
           {flag} {title}
         </h2>
         {m && (
           <span className="flex items-baseline gap-1">
             <span className={`text-2xl font-bold tabular-nums ${scoreColor(m.score)}`}>{m.score}</span>
-            <span className="text-xs text-neutral-600">/100 klimat</span>
+            <span className="text-xs text-neutral-500">/100 klimat</span>
           </span>
         )}
       </div>
@@ -36,14 +36,14 @@ function MarketCard({ m, flag, title }: { m: MarketMacro | null; flag: string; t
         <>
           <div className="space-y-2">
             {m.indicators.map((i) => (
-              <div key={i.key} className="flex items-center justify-between border-b border-neutral-900 py-1 text-sm last:border-0">
-                <span className="text-neutral-400">
-                  {i.label} {i.year && <span className="text-neutral-600">({i.year})</span>}
+              <div key={i.key} className="flex items-center justify-between border-b border-neutral-200 py-1 text-sm last:border-0">
+                <span className="text-neutral-600">
+                  {i.label} {i.year && <span className="text-neutral-500">({i.year})</span>}
                 </span>
                 <span className="flex items-center gap-2 tabular-nums">
-                  <span className="text-neutral-100">{i.value !== null ? `${i.value.toFixed(1)}${i.unit}` : "—"}</span>
+                  <span className="text-neutral-900">{i.value !== null ? `${i.value.toFixed(1)}${i.unit}` : "—"}</span>
                   {i.value !== null && i.prevValue !== null && (
-                    <span className={`text-xs ${i.value < i.prevValue ? "text-emerald-400" : i.value > i.prevValue ? "text-red-400" : "text-neutral-500"}`}>
+                    <span className={`text-xs ${i.value < i.prevValue ? "text-emerald-600" : i.value > i.prevValue ? "text-rose-600" : "text-neutral-500"}`}>
                       {i.value < i.prevValue ? "↓" : i.value > i.prevValue ? "↑" : "="} {i.prevValue.toFixed(1)}{i.unit}
                     </span>
                   )}
@@ -52,17 +52,17 @@ function MarketCard({ m, flag, title }: { m: MarketMacro | null; flag: string; t
             ))}
           </div>
           {m.fx?.usdPln && (
-            <div className="rounded-md border border-neutral-800 bg-neutral-900/40 px-3 py-2 text-xs text-neutral-300">
+            <div className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-700">
               Kursy NBP{m.fx.date ? ` (${m.fx.date})` : ""}: USD/PLN{" "}
-              <span className="font-semibold text-neutral-100">{m.fx.usdPln.toFixed(4)}</span>
+              <span className="font-semibold text-neutral-900">{m.fx.usdPln.toFixed(4)}</span>
               {m.fx.eurPln && (
                 <>
-                  {" · "}EUR/PLN <span className="font-semibold text-neutral-100">{m.fx.eurPln.toFixed(4)}</span>
+                  {" · "}EUR/PLN <span className="font-semibold text-neutral-900">{m.fx.eurPln.toFixed(4)}</span>
                 </>
               )}
             </div>
           )}
-          {m.updatedAt && <p className="text-[10px] text-neutral-600">Zaktualizowano: {m.updatedAt.replace("T", " ")}</p>}
+          {m.updatedAt && <p className="text-[10px] text-neutral-500">Zaktualizowano: {m.updatedAt.replace("T", " ")}</p>}
         </>
       )}
     </section>
@@ -135,14 +135,14 @@ function SectorClimateSection() {
     <section className="card p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-neutral-200">
+          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-neutral-800">
             <span className="h-3.5 w-1 rounded-full bg-gradient-to-b from-blue-500 to-indigo-500" />
             Koniunktura sektorów
           </h2>
           <p className="mt-1 text-xs text-neutral-500">
-            <strong className="text-neutral-300">Żywa</strong> — 60% z bieżącej siły kursów sektora
+            <strong className="text-neutral-700">Żywa</strong> — 60% z bieżącej siły kursów sektora
             (3M/1M + szerokość rynku), 40% prior strukturalny. Kliknij sektor, by zobaczyć{" "}
-            <strong className="text-neutral-300">co złożyło się na ocenę</strong> i analizę AI.
+            <strong className="text-neutral-700">co złożyło się na ocenę</strong> i analizę AI.
           </p>
         </div>
         <button onClick={generate} disabled={generating} className="btn btn-primary">
@@ -150,7 +150,7 @@ function SectorClimateSection() {
         </button>
       </div>
 
-      {msg && <p className="mt-2 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-xs text-neutral-300">{msg}</p>}
+      {msg && <p className="mt-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-700">{msg}</p>}
       {loading && <p className="mt-3 text-sm text-neutral-500">Ładowanie…</p>}
       {!loading && rows.length === 0 && (
         <p className="mt-3 text-sm text-neutral-500">Brak danych sektorów — odśwież „Notowania" w Rankingu.</p>
@@ -164,10 +164,10 @@ function SectorClimateSection() {
             <div key={r.sector} className="surface-2 overflow-hidden">
               <button
                 onClick={() => setOpen(isOpen ? null : r.sector)}
-                className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-white/[0.02]"
+                className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-neutral-50"
               >
-                <span className="w-40 shrink-0 truncate text-sm font-medium text-neutral-100">{r.sector}</span>
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
+                <span className="w-40 shrink-0 truncate text-sm font-medium text-neutral-900">{r.sector}</span>
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-neutral-100">
                   <div
                     className={`h-full rounded-full ${r.climate100 >= 60 ? "bg-emerald-500" : r.climate100 <= 40 ? "bg-rose-500" : "bg-neutral-500"}`}
                     style={{ width: `${r.climate100}%`, transition: "width .5s ease" }}
@@ -185,26 +185,26 @@ function SectorClimateSection() {
               </button>
 
               {isOpen && (
-                <div className="border-t border-white/[0.06] px-3 py-3">
+                <div className="border-t border-neutral-200 px-3 py-3">
                   {r.ai ? (
                     <>
                       <div className="mb-2 flex flex-wrap items-center gap-2">
                         <span className={`badge ${att! >= 60 ? "badge-pos" : att! <= 40 ? "badge-neg" : "badge-neutral"}`}>
                           Atrakcyjność {att}/100
                         </span>
-                        <span className="text-sm font-medium text-neutral-100">{r.ai.verdict}</span>
+                        <span className="text-sm font-medium text-neutral-900">{r.ai.verdict}</span>
                       </div>
-                      <p className="mb-3 text-xs text-neutral-300">{r.ai.summary}</p>
+                      <p className="mb-3 text-xs text-neutral-700">{r.ai.summary}</p>
                       <div className="grid gap-3 sm:grid-cols-2">
                         <div>
-                          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-400">Zalety</p>
-                          <ul className="space-y-1 text-xs text-neutral-300">
+                          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-600">Zalety</p>
+                          <ul className="space-y-1 text-xs text-neutral-700">
                             {r.ai.strengths.map((s, i) => <li key={i}>▲ {s}</li>)}
                           </ul>
                         </div>
                         <div>
-                          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-rose-400">Zagrożenia</p>
-                          <ul className="space-y-1 text-xs text-neutral-300">
+                          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-rose-600">Zagrożenia</p>
+                          <ul className="space-y-1 text-xs text-neutral-700">
                             {r.ai.threats.map((s, i) => <li key={i}>▼ {s}</li>)}
                           </ul>
                         </div>
@@ -216,19 +216,19 @@ function SectorClimateSection() {
                     </p>
                   )}
 
-                  <div className="mt-3 border-t border-white/[0.06] pt-3">
+                  <div className="mt-3 border-t border-neutral-200 pt-3">
                     <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
                       Co złożyło się na ocenę
                     </p>
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-4">
                       {(r.ai?.drivers ?? []).map((d, i) => (
-                        <div key={i} className="flex items-baseline justify-between gap-1 border-b border-white/[0.04] py-0.5">
+                        <div key={i} className="flex items-baseline justify-between gap-1 border-b border-neutral-100 py-0.5">
                           <span className="text-[11px] text-neutral-500">{d.label}</span>
-                          <span className="text-xs font-medium tabular-nums text-neutral-200">{d.value}</span>
+                          <span className="text-xs font-medium tabular-nums text-neutral-800">{d.value}</span>
                         </div>
                       ))}
                     </div>
-                    <p className="mt-2 text-[11px] text-neutral-600">
+                    <p className="mt-2 text-[11px] text-neutral-500">
                       Spółki: {r.companies.join(", ")}
                       {r.note ? ` · ${r.note}` : ""}
                     </p>
@@ -288,8 +288,8 @@ export default function MacroPage() {
         <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-blue-500/10 blur-3xl" />
         <div className="relative max-w-2xl">
           <p className="eyebrow">Makro & sektory</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-50">Koniunktura makro</h1>
-          <p className="mt-2 text-sm text-neutral-400">
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900">Koniunktura makro</h1>
+          <p className="mt-2 text-sm text-neutral-600">
             Klimat makroekonomiczny Polski i USA — inflacja, wzrost PKB, bezrobocie (World Bank,
             ostatnie dostępne roczne) + kursy NBP. Wskaźnik informacyjny. W rankingu atrakcyjności
             koniunkturę reprezentuje teraz <strong>koniunktura sektora</strong> (poniżej) — żywa,
@@ -303,13 +303,13 @@ export default function MacroPage() {
       </div>
 
       {view && !view.usingDb && (
-        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-700">
           Wymaga bazy (Vercel Postgres). Ustaw <code>POSTGRES_URL</code> i uruchom <code>/api/init-db</code>.
         </div>
       )}
 
       {error && (
-        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-700">
           Błąd: {error}
         </div>
       )}
@@ -323,7 +323,7 @@ export default function MacroPage() {
 
       <SectorClimateSection />
 
-      <p className="text-[10px] text-neutral-600">
+      <p className="text-[10px] text-neutral-500">
         Źródła: World Bank (wskaźniki roczne, ostatnie dostępne) + NBP (kursy dzienne). To kluczowe
         odczyty makro, nie live feed wydarzeń. Narzędzie informacyjne, nie doradztwo inwestycyjne.
       </p>

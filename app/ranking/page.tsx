@@ -9,11 +9,11 @@ interface View {
 }
 
 function scoreColor(score: number): string {
-  if (score >= 65) return "text-emerald-400";
-  if (score >= 55) return "text-emerald-300";
-  if (score <= 35) return "text-red-400";
-  if (score <= 45) return "text-red-300";
-  return "text-neutral-300";
+  if (score >= 65) return "text-emerald-600";
+  if (score >= 55) return "text-emerald-700";
+  if (score <= 35) return "text-rose-600";
+  if (score <= 45) return "text-rose-700";
+  return "text-neutral-700";
 }
 
 /** Okrągły wskaźnik wyniku 0-100 (jak gauge na platformie tradingowej). */
@@ -25,7 +25,7 @@ function ScoreGauge({ score }: { score: number }) {
   return (
     <div className="relative grid h-14 w-14 shrink-0 place-items-center">
       <svg viewBox="0 0 52 52" className="h-14 w-14 -rotate-90">
-        <circle cx="26" cy="26" r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="4" />
+        <circle cx="26" cy="26" r={r} fill="none" stroke="rgba(15,23,42,0.09)" strokeWidth="4" />
         <circle
           cx="26" cy="26" r={r} fill="none" stroke={stroke} strokeWidth="4" strokeLinecap="round"
           strokeDasharray={circ} strokeDashoffset={circ * (1 - score / 100)}
@@ -42,7 +42,7 @@ function Chip({ c }: { c: RankingComponent }) {
     return (
       <span
         title={`${c.label}: brak danych`}
-        className="inline-flex items-center rounded-md border border-white/[0.05] px-1.5 py-0.5 text-[11px] text-neutral-600"
+        className="inline-flex items-center rounded-md border border-neutral-200 px-1.5 py-0.5 text-[11px] text-neutral-500"
       >
         {c.label} —
       </span>
@@ -60,9 +60,9 @@ function Chip({ c }: { c: RankingComponent }) {
 }
 
 function Stat({ label, value, accent }: { label: string; value: string; accent?: number }) {
-  const color = accent != null ? scoreColor(accent) : "text-neutral-100";
+  const color = accent != null ? scoreColor(accent) : "text-neutral-900";
   return (
-    <div className="min-w-[120px] flex-1 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+    <div className="min-w-[120px] flex-1 rounded-lg border border-neutral-200 bg-white px-3 py-2">
       <div className="text-[10px] font-medium uppercase tracking-wider text-neutral-500">{label}</div>
       <div className={`mt-0.5 truncate text-sm font-semibold tabular-nums ${color}`}>{value}</div>
     </div>
@@ -77,7 +77,7 @@ function Bar({ score }: { score: number }) {
         ? "from-rose-500 to-rose-400"
         : "from-neutral-500 to-neutral-400";
   return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
       <div
         className={`h-full rounded-full bg-gradient-to-r ${grad}`}
         style={{ width: `${score}%`, transition: "width .6s ease" }}
@@ -197,13 +197,13 @@ export default function RankingPage() {
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-2xl">
             <p className="eyebrow">Screener · najlepsze do kupna na dziś</p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-50">
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900">
               Ranking atrakcyjności
             </h1>
-            <p className="mt-2 text-sm leading-relaxed text-neutral-400">
-              Najwyższa oczekiwana stopa zwrotu od <strong className="text-neutral-200">bieżącej
+            <p className="mt-2 text-sm leading-relaxed text-neutral-600">
+              Najwyższa oczekiwana stopa zwrotu od <strong className="text-neutral-800">bieżącej
               ceny</strong>, przy zdrowych fundamentach i sygnałach smart money. Rdzeń wskaźnika:{" "}
-              <strong className="text-neutral-200">Wycena (C/Z + EV/EBITDA + C/WK) · Jakość (ROE) ·
+              <strong className="text-neutral-800">Wycena (C/Z + EV/EBITDA + C/WK) · Jakość (ROE) ·
               Momentum</strong>, wszystko względem sektora. Cały katalog GPW automatycznie.
             </p>
           </div>
@@ -227,7 +227,7 @@ export default function RankingPage() {
           </div>
         </div>
         {view?.ranking?.length ? (
-          <div className="relative mt-4 flex flex-wrap gap-2 border-t border-white/[0.06] pt-4">
+          <div className="relative mt-4 flex flex-wrap gap-2 border-t border-neutral-200 pt-4">
             <Stat label="Spółek" value={String(view.ranking.length)} />
             <Stat label="Najwyższy wynik" value={topScore != null ? String(topScore) : "—"} accent={topScore} />
             <Stat label="Mediana katalogu" value={avgScore != null ? String(avgScore) : "—"} />
@@ -238,7 +238,7 @@ export default function RankingPage() {
 
       {progress.length > 0 && (
         <div className="card px-4 py-3">
-          <p className="mb-2 text-xs text-neutral-400">
+          <p className="mb-2 text-xs text-neutral-600">
             {refreshing
               ? "Pobieram dane ze źródeł (każde osobno, by nie ucięło na limicie czasu)…"
               : "Odświeżanie zakończone. Liczby to nowe wpisy; +0 oznacza brak nowych zgłoszeń (nie błąd)."}
@@ -247,16 +247,16 @@ export default function RankingPage() {
             {progress.map((s) => {
               const cls =
                 s.status === "ok"
-                  ? "border-emerald-900 bg-emerald-950/40 text-emerald-300"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                   : s.status === "err"
-                    ? "border-red-900 bg-red-950/40 text-red-300"
+                    ? "border-rose-200 bg-rose-50 text-rose-700"
                     : s.status === "running"
-                      ? "border-blue-800 bg-blue-950/40 text-blue-300"
-                      : "border-neutral-800 text-neutral-600";
+                      ? "border-blue-800 bg-blue-50 text-blue-700"
+                      : "border-neutral-200 text-neutral-500";
               const icon = s.status === "ok" ? "✓" : s.status === "err" ? "✕" : s.status === "running" ? "…" : "·";
               return (
                 <span key={s.label} className={`rounded border px-2 py-0.5 text-xs ${cls}`} title={s.detail}>
-                  {icon} {s.label} {s.detail && s.status !== "running" ? <span className="text-neutral-400">{s.detail}</span> : null}
+                  {icon} {s.label} {s.detail && s.status !== "running" ? <span className="text-neutral-600">{s.detail}</span> : null}
                 </span>
               );
             })}
@@ -265,14 +265,14 @@ export default function RankingPage() {
       )}
 
       {view && !view.usingDb && (
-        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-700">
           Wymaga bazy (Vercel Postgres). Ustaw <code>POSTGRES_URL</code> i uruchom <code>/api/init-db</code>,
           potem odśwież źródła, aby ranking miał z czego liczyć.
         </div>
       )}
 
       {error && (
-        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-700">
           Błąd: {error}
         </div>
       )}
@@ -294,7 +294,7 @@ export default function RankingPage() {
               <div className="flex shrink-0 flex-col items-center gap-1.5">
                 <span
                   className={`grid h-6 w-6 place-items-center rounded-md text-xs font-bold tabular-nums ${
-                    i < 3 ? "bg-blue-500/15 text-blue-300 ring-1 ring-inset ring-blue-500/25" : "text-neutral-500"
+                    i < 3 ? "bg-blue-500/15 text-blue-700 ring-1 ring-inset ring-blue-500/25" : "text-neutral-500"
                   }`}
                 >
                   {i + 1}
@@ -304,9 +304,9 @@ export default function RankingPage() {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <span className="truncate text-[15px] font-semibold text-neutral-50">{e.company}</span>
+                    <span className="truncate text-[15px] font-semibold text-neutral-900">{e.company}</span>
                     <span className="ml-1.5 font-mono text-xs uppercase text-neutral-500">{e.ticker}</span>
-                    <span className="ml-1 rounded bg-white/[0.05] px-1 py-px text-[9px] font-medium text-neutral-400">{e.market}</span>
+                    <span className="ml-1 rounded bg-neutral-100 px-1 py-px text-[9px] font-medium text-neutral-600">{e.market}</span>
                   </div>
                   {e.coverage < 0.5 && <span className="badge badge-warn">skąpe dane</span>}
                 </div>
@@ -319,25 +319,25 @@ export default function RankingPage() {
                   ))}
                 </div>
                 <div className="mt-2.5 surface-2 px-3 py-2 text-xs">
-                  <div className="font-semibold text-neutral-100">
-                    <span className="mr-1 rounded bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-blue-300">
+                  <div className="font-semibold text-neutral-900">
+                    <span className="mr-1 rounded bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-blue-700">
                       Wniosek
                     </span>
                     {e.verdict}
                   </div>
                   {e.pros.length > 0 && (
-                    <div className="mt-1.5 text-emerald-300/90">
+                    <div className="mt-1.5 text-emerald-700">
                       <span className="text-neutral-500">▲ Za: </span>
                       {e.pros.join(" · ")}
                     </div>
                   )}
                   {e.cons.length > 0 && (
-                    <div className="mt-0.5 text-rose-300/90">
+                    <div className="mt-0.5 text-rose-700">
                       <span className="text-neutral-500">▼ Przeciw: </span>
                       {e.cons.join(" · ")}
                     </div>
                   )}
-                  {e.note && <div className="mt-1 text-amber-400/90">⚠ {e.note}</div>}
+                  {e.note && <div className="mt-1 text-amber-700">⚠ {e.note}</div>}
                 </div>
               </div>
             </div>
@@ -345,7 +345,7 @@ export default function RankingPage() {
         ))}
       </ol>
 
-      <p className="text-[10px] text-neutral-600">
+      <p className="text-[10px] text-neutral-500">
         Metodyka (wskaźnik złożony wg podejścia OECD/JRC — bez modelu nadzorowanego, bo brak
         etykiet/outcome): odporny z-score przekrojowy (mediana + MAD, winsoryzacja ±2,5σ), przy
         wycenie / jakości / zadłużeniu <strong>względem sektora</strong> → ważona średnia z rdzeniem

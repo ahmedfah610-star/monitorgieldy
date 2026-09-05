@@ -29,13 +29,13 @@ const cap = (v: number | null) => (v == null ? "—" : `${(v / 1e9).toFixed(1)}`
 
 function scoreColor(s: number | null) {
   if (s == null) return "text-neutral-500";
-  if (s >= 65) return "text-emerald-400";
-  if (s >= 55) return "text-emerald-300";
-  if (s <= 35) return "text-rose-400";
-  if (s <= 45) return "text-rose-300";
-  return "text-neutral-300";
+  if (s >= 65) return "text-emerald-600";
+  if (s >= 55) return "text-emerald-700";
+  if (s <= 35) return "text-rose-600";
+  if (s <= 45) return "text-rose-700";
+  return "text-neutral-700";
 }
-const chgColor = (v: number | null) => (v == null ? "text-neutral-500" : v > 0 ? "text-emerald-400" : v < 0 ? "text-rose-400" : "text-neutral-400");
+const chgColor = (v: number | null) => (v == null ? "text-neutral-500" : v > 0 ? "text-emerald-600" : v < 0 ? "text-rose-600" : "text-neutral-600");
 
 interface Col {
   key: keyof ScreenerRow;
@@ -48,20 +48,20 @@ const COLS: Col[] = [
   { key: "score", label: "Wynik", align: "right", render: (r) => r.score ?? "—", cls: (r) => `font-bold ${scoreColor(r.score)}` },
   { key: "company", label: "Spółka", render: (r) => (
       <span className="flex items-center gap-1.5">
-        <span className="font-medium text-neutral-100">{r.company}</span>
+        <span className="font-medium text-neutral-900">{r.company}</span>
         <span className="font-mono text-[10px] uppercase text-neutral-500">{r.ticker}</span>
-        {r.soe && <span className="rounded bg-amber-500/10 px-1 text-[9px] text-amber-400">SP</span>}
+        {r.soe && <span className="rounded bg-amber-500/10 px-1 text-[9px] text-amber-700">SP</span>}
       </span>
     ) },
-  { key: "sector", label: "Sektor", render: (r) => <span className="text-neutral-400">{r.sector}</span> },
+  { key: "sector", label: "Sektor", render: (r) => <span className="text-neutral-600">{r.sector}</span> },
   { key: "close", label: "Kurs", align: "right", render: (r) => (r.close == null ? "—" : `${r.close.toFixed(2)}`) },
   { key: "changePct", label: "Zm.", align: "right", render: (r) => (r.changePct == null ? "—" : `${r.changePct >= 0 ? "+" : ""}${r.changePct.toFixed(1)}%`), cls: (r) => chgColor(r.changePct) },
   { key: "pe", label: "C/Z", align: "right", render: (r) => fmt(r.pe) },
   { key: "pbv", label: "C/WK", align: "right", render: (r) => fmt(r.pbv) },
   { key: "evEbitda", label: "EV/EBITDA", align: "right", render: (r) => fmt(r.evEbitda) },
-  { key: "roe", label: "ROE", align: "right", render: (r) => pct(r.roe), cls: (r) => (r.roe != null && r.roe > 0.15 ? "text-emerald-300" : "") },
+  { key: "roe", label: "ROE", align: "right", render: (r) => pct(r.roe), cls: (r) => (r.roe != null && r.roe > 0.15 ? "text-emerald-700" : "") },
   { key: "dte", label: "D/E", align: "right", render: (r) => (r.dte == null ? "—" : `${r.dte.toFixed(0)}%`) },
-  { key: "divYield", label: "Dyw.", align: "right", render: (r) => (r.divYield == null ? "—" : `${r.divYield.toFixed(1)}%`), cls: (r) => (r.divYield ? "text-emerald-300" : "") },
+  { key: "divYield", label: "Dyw.", align: "right", render: (r) => (r.divYield == null ? "—" : `${r.divYield.toFixed(1)}%`), cls: (r) => (r.divYield ? "text-emerald-700" : "") },
   { key: "r3m", label: "Mom 3M", align: "right", render: (r) => (r.r3m == null ? "—" : `${r.r3m >= 0 ? "+" : ""}${(r.r3m * 100).toFixed(0)}%`), cls: (r) => chgColor(r.r3m) },
   { key: "marketCap", label: "Kap. (mld)", align: "right", render: (r) => cap(r.marketCap) },
 ];
@@ -157,10 +157,10 @@ export default function ScreenerPage() {
         <div className="relative flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="eyebrow">Skaner rynku</p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-50">Screener GPW</h1>
-            <p className="mt-1 max-w-2xl text-sm text-neutral-400">
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900">Screener GPW</h1>
+            <p className="mt-1 max-w-2xl text-sm text-neutral-600">
               Filtruj cały katalog wg własnych kryteriów — wycena, jakość, momentum, dywidenda,
-              wielkość — z naszym <strong className="text-neutral-200">wynikiem atrakcyjności</strong> w
+              wielkość — z naszym <strong className="text-neutral-800">wynikiem atrakcyjności</strong> w
               każdym wierszu. Kliknij nagłówek, by sortować.
             </p>
           </div>
@@ -176,7 +176,7 @@ export default function ScreenerPage() {
             <button
               key={p.label}
               onClick={() => { const { f: nf, sort: s, dir: d } = p.apply(); setF(nf); setSort(s); setDir(d); }}
-              className="navpill border border-white/10 text-neutral-300 hover:border-blue-500/40 hover:text-white"
+              className="navpill border border-neutral-200 text-neutral-700 hover:border-blue-500/40 hover:text-neutral-900"
             >
               {p.label}
             </button>
@@ -202,7 +202,7 @@ export default function ScreenerPage() {
       </div>
 
       {!usingDb && (
-        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-700">
           Wymaga bazy. Uruchom <code>/api/init-db</code> i odśwież „Notowania" w Rankingu.
         </div>
       )}
@@ -215,7 +215,7 @@ export default function ScreenerPage() {
       <div className="card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-white/[0.07] text-[11px] uppercase tracking-wide text-neutral-500">
+            <tr className="border-b border-neutral-200 text-[11px] uppercase tracking-wide text-neutral-500">
               {COLS.map((c) => (
                 <th
                   key={String(c.key)}
@@ -223,18 +223,18 @@ export default function ScreenerPage() {
                   className={`cursor-pointer select-none px-2.5 py-2.5 font-medium hover:text-neutral-300 ${c.align === "right" ? "text-right" : "text-left"}`}
                 >
                   {c.label}
-                  {sort === c.key && <span className="ml-0.5 text-blue-400">{dir === "desc" ? "▾" : "▴"}</span>}
+                  {sort === c.key && <span className="ml-0.5 text-blue-600">{dir === "desc" ? "▾" : "▴"}</span>}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
             {filtered.map((r) => (
-              <tr key={r.ticker} className="border-b border-white/[0.04] transition-colors last:border-0 hover:bg-white/[0.025]">
+              <tr key={r.ticker} className="border-b border-neutral-100 transition-colors last:border-0 hover:bg-neutral-50">
                 {COLS.map((c) => (
                   <td
                     key={String(c.key)}
-                    className={`whitespace-nowrap px-2.5 py-2 tabular-nums ${c.align === "right" ? "text-right" : "text-left"} ${c.cls?.(r) ?? "text-neutral-200"}`}
+                    className={`whitespace-nowrap px-2.5 py-2 tabular-nums ${c.align === "right" ? "text-right" : "text-left"} ${c.cls?.(r) ?? "text-neutral-800"}`}
                   >
                     {c.render(r)}
                   </td>
@@ -260,10 +260,10 @@ function Select({ label, value, onChange, options, labels }: {
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 py-1.5 text-xs text-neutral-100 outline-none focus:border-blue-500/50"
+        className="rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-xs text-neutral-900 outline-none focus:border-blue-500/50"
       >
         {options.map((o) => (
-          <option key={o} value={o} className="bg-neutral-900">
+          <option key={o} value={o} className="bg-white">
             {labels?.[o] ?? o}
           </option>
         ))}
@@ -281,7 +281,7 @@ function NumIn({ label, value, onChange, ph }: { label: string; value: string; o
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={ph}
-        className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 py-1.5 text-xs text-neutral-100 outline-none placeholder:text-neutral-600 focus:border-blue-500/50"
+        className="rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-xs text-neutral-900 outline-none placeholder:text-neutral-400 focus:border-blue-500/50"
       />
     </label>
   );
@@ -292,10 +292,10 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
     <button
       onClick={() => onChange(!checked)}
       className={`flex items-center gap-2 self-end rounded-lg border px-2 py-1.5 text-xs transition ${
-        checked ? "border-blue-500/40 bg-blue-500/10 text-blue-200" : "border-white/[0.08] bg-white/[0.03] text-neutral-400 hover:text-neutral-200"
+        checked ? "border-blue-500/40 bg-blue-500/10 text-blue-700" : "border-neutral-200 bg-white text-neutral-600 hover:text-neutral-200"
       }`}
     >
-      <span className={`grid h-3.5 w-3.5 place-items-center rounded-[3px] border ${checked ? "border-blue-400 bg-blue-500 text-white" : "border-white/20"}`}>
+      <span className={`grid h-3.5 w-3.5 place-items-center rounded-[3px] border ${checked ? "border-blue-400 bg-blue-500 text-white" : "border-neutral-300"}`}>
         {checked ? "✓" : ""}
       </span>
       {label}

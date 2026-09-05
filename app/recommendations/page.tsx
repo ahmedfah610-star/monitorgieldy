@@ -75,7 +75,7 @@ export default function RecommendationsPage() {
   return (
     <main className="space-y-8">
       <div className="card flex flex-wrap items-center justify-between gap-3 p-5">
-        <h1 className="text-2xl font-semibold tracking-tight text-neutral-50">Rekomendacje analityków</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Rekomendacje analityków</h1>
         <button
           onClick={refresh}
           disabled={refreshing}
@@ -86,7 +86,7 @@ export default function RecommendationsPage() {
       </div>
 
       {view && !view.usingDb && (
-        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-700">
           Baza nie jest skonfigurowana — rekomendacje wymagają Vercel Postgres (do zapisu
           historii i wykrywania nowych). Ustaw <code>POSTGRES_URL</code> i uruchom{" "}
           <code>/api/init-db</code>.
@@ -94,19 +94,19 @@ export default function RecommendationsPage() {
       )}
 
       {error && (
-        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-700">
           Błąd: {error}
         </div>
       )}
 
       {summary && (
-        <div className="rounded-md border border-neutral-800 bg-neutral-900/50 px-4 py-3 text-sm">
-          <p className="text-neutral-200">
+        <div className="rounded-md border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm">
+          <p className="text-neutral-800">
             Odświeżono: pobrano {summary.fetched}, nowych{" "}
             <span className="font-semibold text-up">{summary.inserted}</span>.
           </p>
           {!summary.finnhubConfigured && (
-            <p className="mt-1 text-xs text-amber-400">
+            <p className="mt-1 text-xs text-amber-700">
               Finnhub nieaktywny (brak FINNHUB_API_KEY) — rekomendacje US pominięte.
             </p>
           )}
@@ -125,7 +125,7 @@ export default function RecommendationsPage() {
       {view && (
         <>
           <section className="space-y-4">
-            <h2 className="text-lg font-medium text-neutral-200">Twoja watchlista</h2>
+            <h2 className="text-lg font-medium text-neutral-800">Twoja watchlista</h2>
             {grouped.length === 0 ? (
               <p className="text-sm text-neutral-500">
                 Brak zapisanych rekomendacji. Kliknij „Odśwież rekomendacje", aby pobrać dane.
@@ -133,8 +133,8 @@ export default function RecommendationsPage() {
             ) : (
               grouped.map(([ticker, recs]) => (
                 <div key={ticker} className="space-y-2">
-                  <h3 className="text-sm font-semibold uppercase tracking-wide text-neutral-400">
-                    {ticker} <span className="text-neutral-600">({recs[0]?.market})</span>
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-neutral-600">
+                    {ticker} <span className="text-neutral-500">({recs[0]?.market})</span>
                   </h3>
                   <RecommendationsTable recs={recs} />
                 </div>
@@ -143,7 +143,7 @@ export default function RecommendationsPage() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-lg font-medium text-neutral-200">
+            <h2 className="text-lg font-medium text-neutral-800">
               Najnowsze z rynku (bankier.pl)
             </h2>
             <RecommendationsTable recs={view.market} showCompany />

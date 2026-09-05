@@ -3,51 +3,51 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
-  --bg: #08090c;
-  --accent: 56 130 246; /* niebieski akcent marki (rgba(var(--accent)/a)) */
-  --pos: 16 185 129; /* emerald — wzrost */
-  --neg: 244 63 94; /* rose — spadek */
+  color-scheme: light;
+  --bg: #eef1f8;
+  --accent: 37 99 235; /* blue-600 */
+  --pos: 5 150 105;
+  --neg: 225 29 72;
 }
 
 body {
-  @apply font-sans text-neutral-100 antialiased;
+  @apply font-sans text-neutral-700 antialiased;
   min-height: 100vh;
-  /* Warstwowa poswiata + delikatna siatka — glebia jak w terminalu handlowym. */
+  /* Jasne, świetliste tło z delikatnymi poświatami i subtelną siatką. */
   background:
-    radial-gradient(1200px 640px at 50% -14%, rgb(var(--accent) / 0.12), transparent 60%),
-    radial-gradient(820px 460px at 100% -6%, rgb(139 92 246 / 0.08), transparent 55%),
-    radial-gradient(700px 500px at 0% 10%, rgb(6 182 212 / 0.05), transparent 55%),
-    linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px) 0 0 / 100% 44px,
+    radial-gradient(1200px 640px at 50% -16%, rgb(var(--accent) / 0.14), transparent 62%),
+    radial-gradient(820px 460px at 100% -8%, rgb(139 92 246 / 0.1), transparent 58%),
+    radial-gradient(720px 520px at 0% 8%, rgb(6 182 212 / 0.08), transparent 58%),
+    linear-gradient(rgba(15, 23, 42, 0.028) 1px, transparent 1px) 0 0 / 100% 46px,
     var(--bg);
   background-attachment: fixed;
 }
 
 ::selection {
-  background: rgb(var(--accent) / 0.32);
+  background: rgb(var(--accent) / 0.18);
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #26262b transparent;
+  scrollbar-color: #c7cede transparent;
 }
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #26262b;
+  background: #c7cede;
   border-radius: 9999px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: #a9b2c6;
   background-clip: padding-box;
 }
 
 :focus-visible {
-  outline: 2px solid rgb(var(--accent) / 0.6);
+  outline: 2px solid rgb(var(--accent) / 0.55);
   outline-offset: 2px;
 }
 
@@ -56,21 +56,19 @@ table {
 }
 
 @layer components {
-  /* Powierzchnie — szklane, z gradientem i wewnetrznym rozswietleniem (glebia). */
+  /* Powierzchnie — białe karty z miękkim cieniem i delikatną ramką. */
   .card {
-    @apply rounded-2xl border border-white/[0.08];
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012));
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 10px 30px -20px rgba(0, 0, 0, 0.8);
+    @apply rounded-2xl border border-neutral-200/90 bg-white;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 30px -20px rgba(15, 23, 42, 0.18);
   }
   .card-hover {
-    @apply transition duration-200 hover:border-white/[0.16];
+    @apply transition duration-200 hover:border-neutral-300;
   }
   .card-hover:hover {
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 16px 40px -22px rgba(37, 99, 235, 0.35);
+    box-shadow: 0 2px 4px rgba(15, 23, 42, 0.05), 0 18px 40px -22px rgba(37, 99, 235, 0.3);
   }
   .surface-2 {
-    @apply rounded-xl border border-white/[0.06];
-    background: rgba(255, 255, 255, 0.025);
+    @apply rounded-xl border border-neutral-200 bg-neutral-50;
   }
 
   /* Przyciski */
@@ -78,14 +76,14 @@ table {
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
-    @apply text-white shadow-lg shadow-blue-600/20 ring-1 ring-inset ring-white/10;
-    background-image: linear-gradient(135deg, #3b82f6, #4f46e5);
+    @apply text-white shadow-lg shadow-blue-600/25 ring-1 ring-inset ring-white/20;
+    background-image: linear-gradient(135deg, #2563eb, #4f46e5);
   }
   .btn-primary:not(:disabled):hover {
-    filter: brightness(1.08);
+    filter: brightness(1.06);
   }
   .btn-ghost {
-    @apply border border-white/10 text-neutral-300 hover:border-white/25 hover:text-white;
+    @apply border border-neutral-300 bg-white text-neutral-700 hover:border-neutral-400 hover:bg-neutral-50 hover:text-neutral-900;
   }
 
   /* Nawigacja */
@@ -95,21 +93,21 @@ table {
 
   /* Etykiety / oznaczenia */
   .eyebrow {
-    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500;
+    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-600;
   }
   .badge {
     @apply inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset;
   }
   .badge-pos {
-    @apply bg-emerald-500/10 text-emerald-300 ring-emerald-500/20;
+    @apply bg-emerald-50 text-emerald-700 ring-emerald-200;
   }
   .badge-neg {
-    @apply bg-rose-500/10 text-rose-300 ring-rose-500/20;
+    @apply bg-rose-50 text-rose-700 ring-rose-200;
   }
   .badge-neutral {
-    @apply bg-white/[0.04] text-neutral-400 ring-white/10;
+    @apply bg-neutral-100 text-neutral-600 ring-neutral-200;
   }
   .badge-warn {
-    @apply bg-amber-500/10 text-amber-300 ring-amber-500/20;
+    @apply bg-amber-50 text-amber-700 ring-amber-200;
   }
 }

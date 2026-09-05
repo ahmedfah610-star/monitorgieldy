@@ -15,7 +15,7 @@ export function BottomNav() {
   const path = usePathname();
   const active = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.08] bg-[#0a0b0e]/90 backdrop-blur-xl sm:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-200 bg-white/85 backdrop-blur-xl sm:hidden">
       <div className="mx-auto grid max-w-lg grid-cols-5">
         {ITEMS.map((it) => {
           const on = active(it.href);
@@ -25,7 +25,7 @@ export function BottomNav() {
               <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke={on ? "rgb(96 165 250)" : "rgb(115 115 115)"} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
                 {it.icon}
               </svg>
-              <span className={`text-[10px] font-medium ${on ? "text-blue-300" : "text-neutral-500"}`}>{it.label}</span>
+              <span className={`text-[10px] font-medium ${on ? "text-blue-700" : "text-neutral-500"}`}>{it.label}</span>
             </Link>
           );
         })}

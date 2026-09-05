@@ -27,18 +27,18 @@ export function IndexTicker() {
   if (items.length === 0) return null;
 
   return (
-    <div className="-mx-4 border-t border-white/[0.05] bg-black/20">
+    <div className="-mx-4 border-t border-neutral-200 bg-neutral-100/70">
       <div className="flex gap-4 overflow-x-auto px-4 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {items.map((q) => {
           const up = (q.changePct ?? 0) > 0;
           const down = (q.changePct ?? 0) < 0;
           return (
             <span key={`${q.symbol}`} className="flex shrink-0 items-baseline gap-1.5 text-xs">
-              <span className="font-medium text-neutral-300">{q.label}</span>
+              <span className="font-medium text-neutral-700">{q.label}</span>
               <span className="tabular-nums text-neutral-500">
                 {q.close?.toLocaleString("pl-PL", { maximumFractionDigits: 2 })}
               </span>
-              <span className={`tabular-nums font-medium ${up ? "text-emerald-400" : down ? "text-rose-400" : "text-neutral-500"}`}>
+              <span className={`tabular-nums font-medium ${up ? "text-emerald-600" : down ? "text-rose-600" : "text-neutral-500"}`}>
                 {up ? "▲" : down ? "▼" : ""}{q.changePct == null ? "" : `${Math.abs(q.changePct).toFixed(2)}%`}
               </span>
             </span>

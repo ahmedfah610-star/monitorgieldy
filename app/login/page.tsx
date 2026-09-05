@@ -40,9 +40,9 @@ export default function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Haslo"
           autoFocus
-          className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-blue-500"
+          className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
         />
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && <p className="text-sm text-rose-600">{error}</p>}
         <button
           type="submit"
           disabled={loading}

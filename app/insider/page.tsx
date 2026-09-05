@@ -32,10 +32,10 @@ function fmtValue(v: number | null, currency: string | null): string {
 
 function DirBadge({ type }: { type: InsiderTransaction["txType"] }) {
   if (type === "nabycie")
-    return <span className="rounded border border-emerald-800 bg-emerald-950 px-2 py-0.5 text-xs font-medium text-emerald-300">Kupno</span>;
+    return <span className="rounded border border-emerald-800 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">Kupno</span>;
   if (type === "zbycie")
-    return <span className="rounded border border-red-900 bg-red-950 px-2 py-0.5 text-xs font-medium text-red-300">Sprzedaż</span>;
-  return <span className="rounded border border-neutral-700 bg-neutral-800 px-2 py-0.5 text-xs font-medium text-neutral-300">Transakcja</span>;
+    return <span className="rounded border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700">Sprzedaż</span>;
+  return <span className="rounded border border-neutral-300 bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-700">Transakcja</span>;
 }
 
 function Row({ t }: { t: InsiderTransaction }) {
@@ -45,13 +45,13 @@ function Row({ t }: { t: InsiderTransaction }) {
       <span className="w-24 shrink-0 text-xs tabular-nums text-neutral-500">{date}</span>
       <DirBadge type={t.txType} />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm text-neutral-100">
+        <p className="truncate text-sm text-neutral-900">
           {t.person ?? "Osoba zarządzająca"}
           {t.role && <span className="text-neutral-500"> · {t.role}</span>}
         </p>
         <p className="truncate text-xs text-neutral-500">
           {t.company ?? t.watchTicker ?? "—"}
-          {t.watchTicker && <span className="text-neutral-600"> ({t.watchTicker})</span>}
+          {t.watchTicker && <span className="text-neutral-500"> ({t.watchTicker})</span>}
           {t.volume !== null && (
             <span className="text-neutral-500">
               {" · "}
@@ -63,7 +63,7 @@ function Row({ t }: { t: InsiderTransaction }) {
       </div>
       <span
         className={`w-32 shrink-0 text-right text-sm font-semibold tabular-nums ${
-          t.txType === "nabycie" ? "text-up" : t.txType === "zbycie" ? "text-down" : "text-neutral-300"
+          t.txType === "nabycie" ? "text-up" : t.txType === "zbycie" ? "text-down" : "text-neutral-700"
         }`}
       >
         {t.value !== null ? fmtValue(t.value, t.currency) : ""}
@@ -126,7 +126,7 @@ export default function InsiderPage() {
     <main className="space-y-6">
       <div className="card flex flex-wrap items-center justify-between gap-3 p-5">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-neutral-50">Transakcje insiderów</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Transakcje insiderów</h1>
           <p className="max-w-2xl text-xs text-neutral-500">
             Powiadomienia art. 19 MAR dla spółek PL z watchlisty — kto z zarządu (lub osób
             powiązanych) kupuje/sprzedaje akcje i za ile. Kwoty czytane z formularza ESMA (PDF),
@@ -143,25 +143,25 @@ export default function InsiderPage() {
       </div>
 
       {view && !view.usingDb && (
-        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-700">
           Baza nie jest skonfigurowana — wymaga Vercel Postgres. Ustaw <code>POSTGRES_URL</code> i
           uruchom <code>/api/init-db</code>.
         </div>
       )}
 
       {error && (
-        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-700">
           Błąd: {error}
         </div>
       )}
 
       {summary && (
-        <div className="rounded-md border border-neutral-800 bg-neutral-900/50 px-4 py-3 text-sm">
-          <p className="text-neutral-200">
+        <div className="rounded-md border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm">
+          <p className="text-neutral-800">
             Przetworzono {summary.processed} nowych zgłoszeń, dodano{" "}
             <span className="font-semibold text-up">{summary.inserted}</span> transakcji.
             {summary.pending > 0 && (
-              <span className="text-neutral-400">
+              <span className="text-neutral-600">
                 {" "}
                 Pozostało {summary.pending} — odśwież ponownie, aby doczytać.
               </span>
@@ -187,14 +187,14 @@ export default function InsiderPage() {
       )}
 
       {view && view.transactions.length > 0 && (
-        <ul className="divide-y divide-neutral-900 rounded-lg border border-neutral-800">
+        <ul className="divide-y divide-neutral-200 rounded-lg border border-neutral-200">
           {view.transactions.map((t, i) => (
             <Row key={`${t.url}:${i}`} t={t} />
           ))}
         </ul>
       )}
 
-      <p className="text-[10px] text-neutral-600">
+      <p className="text-[10px] text-neutral-500">
         Dane z komunikatów ESPI (bankier.pl) — narzędzie informacyjne, nie doradztwo inwestycyjne.
         Kierunek i kwoty warto zweryfikować w oryginalnym komunikacie.
       </p>

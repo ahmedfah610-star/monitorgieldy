@@ -60,18 +60,18 @@ function CompanyCard({ c }: { c: CompanyShorts }) {
   return (
     <section className="space-y-2">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-300">
-          {c.company} <span className="text-neutral-600">({c.key})</span>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-700">
+          {c.company} <span className="text-neutral-500">({c.key})</span>
         </h2>
         <span className="flex items-center gap-2 text-xs text-neutral-500">
           łączna krótka pozycja
-          <span className="rounded border border-red-900 bg-red-950/60 px-2 py-0.5 font-semibold tabular-nums text-red-300">
+          <span className="rounded border border-rose-200 bg-rose-50 px-2 py-0.5 font-semibold tabular-nums text-rose-700">
             {c.total.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
           </span>
-          {stale && <span className="text-neutral-600">(ost. {c.lastDate})</span>}
+          {stale && <span className="text-neutral-500">(ost. {c.lastDate})</span>}
         </span>
       </div>
-      <ul className="divide-y divide-neutral-900 rounded-lg border border-neutral-800">
+      <ul className="divide-y divide-neutral-200 rounded-lg border border-neutral-200">
         {c.current.map((p, i) => {
           const d = daysAgo(p.positionDate);
           const active = d !== null && d <= 30;
@@ -79,14 +79,14 @@ function CompanyCard({ c }: { c: CompanyShorts }) {
             <li key={`${p.holder}:${i}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
               <span
                 className={`w-16 shrink-0 text-right text-sm font-semibold tabular-nums ${
-                  (p.netShortPct ?? 0) >= 1 ? "text-red-400" : "text-red-300/80"
+                  (p.netShortPct ?? 0) >= 1 ? "text-rose-600" : "text-red-300/80"
                 }`}
               >
                 {p.netShortPct !== null ? `${p.netShortPct.toLocaleString("pl-PL")}%` : "—"}
               </span>
-              <span className="min-w-0 flex-1 truncate text-sm text-neutral-200">{p.holder}</span>
+              <span className="min-w-0 flex-1 truncate text-sm text-neutral-800">{p.holder}</span>
               {active && (
-                <span className="rounded border border-amber-900 bg-amber-950/50 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">
+                <span className="rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
                   aktywna
                 </span>
               )}
@@ -149,7 +149,7 @@ export default function ShortPage() {
     <main className="space-y-6">
       <div className="card flex flex-wrap items-center justify-between gap-3 p-5">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-neutral-50">Krótkie pozycje (KNF)</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Krótkie pozycje (KNF)</h1>
           <p className="max-w-2xl text-xs text-neutral-500">
             Kto gra na spadek Twoich spółek — z rejestru krótkiej sprzedaży KNF (pozycje netto
             ≥0,5%). Dane publiczne, bez AI. „Łączna" sumuje bieżące pozycje funduszy;
@@ -166,21 +166,21 @@ export default function ShortPage() {
       </div>
 
       {view && !view.usingDb && (
-        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-700">
           Baza nie jest skonfigurowana — wymaga Vercel Postgres. Ustaw <code>POSTGRES_URL</code> i
           uruchom <code>/api/init-db</code>.
         </div>
       )}
 
       {error && (
-        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-700">
           Błąd: {error}
         </div>
       )}
 
       {summary && (
-        <div className="rounded-md border border-neutral-800 bg-neutral-900/50 px-4 py-3 text-sm">
-          <p className="text-neutral-200">
+        <div className="rounded-md border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm">
+          <p className="text-neutral-800">
             Z rejestru KNF: dopasowano {summary.matched} wpisów, nowych{" "}
             <span className="font-semibold text-up">{summary.inserted}</span>.
           </p>
@@ -207,7 +207,7 @@ export default function ShortPage() {
         <CompanyCard key={c.key} c={c} />
       ))}
 
-      <p className="text-[10px] text-neutral-600">
+      <p className="text-[10px] text-neutral-500">
         Źródło: rejestr krótkiej sprzedaży KNF (rss.knf.gov.pl). Narzędzie informacyjne, nie
         doradztwo inwestycyjne. Pozycja może być już zamknięta, jeśli data zgłoszenia jest odległa.
       </p>

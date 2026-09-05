@@ -6,20 +6,20 @@ import type { CompanyOutlook, WatchlistItem } from "@/lib/types";
 function List({ title, items, tone }: { title: string; items: string[]; tone: "up" | "info" | "down" }) {
   const color =
     tone === "up"
-      ? "border-emerald-900/60 text-emerald-300"
+      ? "border-emerald-200 text-emerald-700"
       : tone === "down"
-        ? "border-red-900/60 text-red-300"
-        : "border-blue-900/60 text-blue-300";
-  const dot = tone === "up" ? "text-emerald-500" : tone === "down" ? "text-red-500" : "text-blue-500";
+        ? "border-rose-200 text-rose-700"
+        : "border-blue-200 text-blue-700";
+  const dot = tone === "up" ? "text-emerald-500" : tone === "down" ? "text-rose-600" : "text-blue-500";
   return (
-    <div className={`rounded-md border ${color} bg-neutral-900/40 p-3`}>
+    <div className={`rounded-md border ${color} bg-neutral-50 p-3`}>
       <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide">{title}</p>
       {items.length === 0 ? (
-        <p className="text-xs text-neutral-600">—</p>
+        <p className="text-xs text-neutral-500">—</p>
       ) : (
         <ul className="space-y-1">
           {items.map((it, i) => (
-            <li key={i} className="flex gap-1.5 text-sm text-neutral-200">
+            <li key={i} className="flex gap-1.5 text-sm text-neutral-800">
               <span className={`shrink-0 ${dot}`}>•</span>
               <span>{it}</span>
             </li>
@@ -44,11 +44,11 @@ function OutlookCard({
   error?: string | null;
 }) {
   return (
-    <section className="space-y-2 rounded-lg border border-neutral-800 p-4">
+    <section className="space-y-2 rounded-lg border border-neutral-200 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-200">
-          {item.name} <span className="text-neutral-600">({item.ticker})</span>
-          <span className="ml-1 rounded border border-neutral-700 px-1.5 py-0.5 text-[10px] text-neutral-500">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-800">
+          {item.name} <span className="text-neutral-500">({item.ticker})</span>
+          <span className="ml-1 rounded border border-neutral-300 px-1.5 py-0.5 text-[10px] text-neutral-500">
             {item.market}
           </span>
         </h2>
@@ -56,13 +56,13 @@ function OutlookCard({
           onClick={() => onGenerate(Boolean(outlook))}
           disabled={busy}
           title={outlook ? "Ponowna analiza zużywa tokeny" : "Analiza wywoła model AI (tokeny)"}
-          className="rounded-md border border-indigo-700 px-2.5 py-1 text-xs text-indigo-200 transition hover:border-indigo-500 hover:text-indigo-100 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-md border border-indigo-700 px-2.5 py-1 text-xs text-indigo-700 transition hover:border-indigo-500 hover:text-indigo-100 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {busy ? "Analizuję…" : outlook ? "Analizuj ponownie" : "Analizuj perspektywy"}
         </button>
       </div>
 
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error && <p className="text-xs text-rose-600">{error}</p>}
 
       {!outlook && !error && (
         <p className="text-xs text-neutral-500">
@@ -78,8 +78,8 @@ function OutlookCard({
             <List title="Szanse (przyszłość)" items={outlook.futureOpportunities} tone="info" />
             <List title="Zagrożenia (przyszłość)" items={outlook.futureThreats} tone="down" />
           </div>
-          {outlook.summary && <p className="text-sm text-neutral-300">{outlook.summary}</p>}
-          <p className="text-[10px] text-neutral-600">
+          {outlook.summary && <p className="text-sm text-neutral-700">{outlook.summary}</p>}
+          <p className="text-[10px] text-neutral-500">
             AI ({outlook.model ?? "model"}) na podstawie zebranych sygnałów
             {outlook.createdAt ? ` · ${outlook.createdAt.replace("T", " ")}` : ""} — narzędzie
             informacyjne, nie doradztwo inwestycyjne.
@@ -147,8 +147,8 @@ export default function OutlookPage() {
     <main className="space-y-6">
       <div className="card p-5">
         <p className="eyebrow">Analiza AI</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-neutral-50">Perspektywy spółek</h1>
-        <p className="mt-2 max-w-2xl text-sm text-neutral-400">
+        <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Perspektywy spółek</h1>
+        <p className="mt-2 max-w-2xl text-sm text-neutral-600">
           AI syntetyzuje atuty obecne, szanse i zagrożenia na przyszłość na podstawie wszystkich
           zebranych sygnałów (wyniki, rekomendacje, insiderzy, shorty, znaczne pakiety, dywidendy).
           Analiza na żądanie, wynik zapisywany — ponowna tylko na wyraźne kliknięcie.
@@ -156,14 +156,14 @@ export default function OutlookPage() {
       </div>
 
       {!usingDb && (
-        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-700">
           Wymaga bazy (Vercel Postgres) oraz <code>ANTHROPIC_API_KEY</code>. Ustaw{" "}
           <code>POSTGRES_URL</code>, uruchom <code>/api/init-db</code> i dodaj klucz Anthropic.
         </div>
       )}
 
       {error && (
-        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-700">
           Błąd: {error}
         </div>
       )}

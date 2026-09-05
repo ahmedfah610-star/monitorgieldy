@@ -25,10 +25,10 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 function typeClass(t: string): string {
-  if (t === "roczny") return "bg-blue-950 text-blue-300 border-blue-800";
-  if (t === "polroczny") return "bg-purple-950 text-purple-300 border-purple-800";
-  if (t === "kwartalny") return "bg-emerald-950 text-emerald-300 border-emerald-800";
-  return "bg-neutral-800 text-neutral-300 border-neutral-700";
+  if (t === "roczny") return "bg-blue-50 text-blue-700 border-blue-800";
+  if (t === "polroczny") return "bg-purple-100 text-purple-300 border-purple-800";
+  if (t === "kwartalny") return "bg-emerald-50 text-emerald-700 border-emerald-800";
+  return "bg-neutral-100 text-neutral-700 border-neutral-300";
 }
 
 function fmtNum(v: number | null): string {
@@ -44,12 +44,12 @@ function deltaPct(cur: number | null, prior: number | null): number | null {
 function Metric({ label, cur, prior }: { label: string; cur: number | null; prior: number | null }) {
   if (cur === null && prior === null) return null;
   const d = deltaPct(cur, prior);
-  const dColor = d === null ? "text-neutral-500" : d > 0 ? "text-up" : d < 0 ? "text-down" : "text-neutral-300";
+  const dColor = d === null ? "text-neutral-500" : d > 0 ? "text-up" : d < 0 ? "text-down" : "text-neutral-700";
   return (
-    <div className="flex items-baseline justify-between gap-3 border-b border-neutral-900 py-1.5 last:border-0">
-      <span className="text-sm text-neutral-300">{label}</span>
+    <div className="flex items-baseline justify-between gap-3 border-b border-neutral-200 py-1.5 last:border-0">
+      <span className="text-sm text-neutral-700">{label}</span>
       <span className="flex items-baseline gap-3 tabular-nums">
-        <span className="text-sm text-neutral-100">{fmtNum(cur)}</span>
+        <span className="text-sm text-neutral-900">{fmtNum(cur)}</span>
         <span className="text-xs text-neutral-500">poprz. {fmtNum(prior)}</span>
         <span className={`w-16 text-right text-xs ${dColor}`}>
           {d === null ? "" : `${d > 0 ? "+" : ""}${d.toFixed(1)}%`}
@@ -61,7 +61,7 @@ function Metric({ label, cur, prior }: { label: string; cur: number | null; prio
 
 function FinancialsPanel({ f }: { f: ExtractedFinancials }) {
   return (
-    <div className="mt-1 w-full rounded-md border border-neutral-800 bg-neutral-900/40 p-3">
+    <div className="mt-1 w-full rounded-md border border-neutral-200 bg-neutral-50 p-3">
       <p className="mb-2 text-xs text-neutral-500">
         {f.period}
         {f.comparativePeriod ? ` vs ${f.comparativePeriod}` : ""} · w {f.unit} {f.currency}
@@ -74,8 +74,8 @@ function FinancialsPanel({ f }: { f: ExtractedFinancials }) {
         {f.ebitda !== null && <Metric label="EBITDA" cur={f.ebitda} prior={null} />}
         <Metric label="Zysk na akcję" cur={f.eps} prior={f.epsPrior} />
       </div>
-      {f.summary && <p className="mt-2 text-sm text-neutral-300">{f.summary}</p>}
-      <p className="mt-2 text-[10px] text-neutral-600">
+      {f.summary && <p className="mt-2 text-sm text-neutral-700">{f.summary}</p>}
+      <p className="mt-2 text-[10px] text-neutral-500">
         Analiza AI — narzędzie informacyjne, nie doradztwo inwestycyjne. Zweryfikuj z raportem źródłowym.
       </p>
     </div>
@@ -116,16 +116,16 @@ function CompanyConclusion({
   }
 
   return (
-    <div className="rounded-md border border-indigo-900/60 bg-indigo-950/30 p-3">
+    <div className="rounded-md border border-indigo-200 bg-indigo-50 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-indigo-300">
+        <span className="text-xs font-semibold uppercase tracking-wide text-indigo-700">
           Wnioski AI (trendy)
         </span>
         <button
           onClick={generate}
           disabled={busy || !canGenerate}
           title={canGenerate ? "" : "Wymaga min. 2 przeanalizowanych raportów"}
-          className="rounded-md border border-indigo-700 px-2.5 py-1 text-xs text-indigo-200 transition hover:border-indigo-500 hover:text-indigo-100 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-md border border-indigo-700 px-2.5 py-1 text-xs text-indigo-700 transition hover:border-indigo-500 hover:text-indigo-100 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {busy ? "Generuję…" : conclusion ? "Generuj ponownie" : "Generuj wnioski"}
         </button>
@@ -135,11 +135,11 @@ function CompanyConclusion({
           Kliknij „Analizuj" przy min. 2 raportach, aby porównać okresy.
         </p>
       )}
-      {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
+      {error && <p className="mt-1 text-xs text-rose-600">{error}</p>}
       {conclusion && (
         <>
-          <p className="mt-2 text-sm text-neutral-200">{conclusion.text}</p>
-          <p className="mt-1 text-[10px] text-neutral-600">
+          <p className="mt-2 text-sm text-neutral-800">{conclusion.text}</p>
+          <p className="mt-1 text-[10px] text-neutral-500">
             AI na podstawie zapisanych raportów — nie doradztwo inwestycyjne.
           </p>
         </>
@@ -161,21 +161,21 @@ function ConsensusChip({ recs }: { recs: Recommendation[] }) {
   const currency = recs.find((r) => r.currency)?.currency ?? "";
 
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-neutral-800 bg-neutral-900/40 px-3 py-2 text-xs">
-      <span className="text-neutral-400">
-        Konsensus z <span className="font-semibold text-neutral-200">{recs.length}</span> rekomendacji:
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs">
+      <span className="text-neutral-600">
+        Konsensus z <span className="font-semibold text-neutral-800">{recs.length}</span> rekomendacji:
       </span>
       {median !== null && (
-        <span className="text-neutral-300">
+        <span className="text-neutral-700">
           mediana ceny docelowej{" "}
-          <span className="font-semibold tabular-nums text-neutral-100">
+          <span className="font-semibold tabular-nums text-neutral-900">
             {median.toLocaleString("pl-PL", { maximumFractionDigits: 2 })} {currency}
           </span>
         </span>
       )}
       <span className="flex items-center gap-2">
         <span className="text-up">Kupuj {pos}</span>
-        <span className="text-neutral-300">Trzymaj {neu}</span>
+        <span className="text-neutral-700">Trzymaj {neu}</span>
         <span className="text-down">Sprzedaj {neg}</span>
       </span>
     </div>
@@ -222,7 +222,7 @@ function ReportRow({ r }: { r: Report }) {
           href={r.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex-1 text-sm text-neutral-200 hover:text-blue-400 hover:underline"
+          className="flex-1 text-sm text-neutral-800 hover:text-blue-400 hover:underline"
         >
           {r.title}
         </a>
@@ -231,12 +231,12 @@ function ReportRow({ r }: { r: Report }) {
           onClick={() => analyze(Boolean(extracted))}
           disabled={busy}
           title={extracted ? "Ponowna analiza zużywa tokeny API" : "Analiza wywoła model AI (tokeny)"}
-          className="rounded-md border border-neutral-700 px-2.5 py-1 text-xs text-neutral-200 transition hover:border-blue-600 hover:text-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-md border border-neutral-300 px-2.5 py-1 text-xs text-neutral-800 transition hover:border-blue-600 hover:text-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {busy ? "Analizuję…" : extracted ? "Analizuj ponownie" : "Analizuj"}
         </button>
       </div>
-      {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
+      {error && <p className="mt-1 text-xs text-rose-600">{error}</p>}
       {extracted && <FinancialsPanel f={extracted} />}
     </li>
   );
@@ -310,7 +310,7 @@ export default function ReportsPage() {
     <main className="space-y-8">
       <div className="card flex flex-wrap items-center justify-between gap-3 p-5">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-neutral-50">Raporty okresowe</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Raporty okresowe</h1>
           <p className="text-xs text-neutral-500">
             Komunikaty ESPI/EBI dla spółek PL z watchlisty. „Odśwież raporty" dodaje tylko nowe (bez AI).
             „Analizuj" wyciąga liczby przez AI raz i zapisuje — stare raporty nie idą ponownie do API.
@@ -326,21 +326,21 @@ export default function ReportsPage() {
       </div>
 
       {view && !view.usingDb && (
-        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-700">
           Baza nie jest skonfigurowana — raporty wymagają Vercel Postgres (do zapisu i wykrywania nowych).
           Ustaw <code>POSTGRES_URL</code> i uruchom <code>/api/init-db</code>.
         </div>
       )}
 
       {error && (
-        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-700">
           Błąd: {error}
         </div>
       )}
 
       {summary && (
-        <div className="rounded-md border border-neutral-800 bg-neutral-900/50 px-4 py-3 text-sm">
-          <p className="text-neutral-200">
+        <div className="rounded-md border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm">
+          <p className="text-neutral-800">
             Odświeżono: znaleziono {summary.fetched}, nowych{" "}
             <span className="font-semibold text-up">{summary.inserted}</span>.
           </p>
@@ -364,15 +364,15 @@ export default function ReportsPage() {
 
       {grouped.map(([key, reports]) => (
         <section key={key} className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-400">
-            {reports[0]?.company ?? key} <span className="text-neutral-600">({key})</span>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-600">
+            {reports[0]?.company ?? key} <span className="text-neutral-500">({key})</span>
           </h2>
           <CompanyConclusion
             ticker={key}
             extractedCount={reports.filter((r) => r.extractedJson).length}
             initial={view?.conclusions?.[key]}
           />
-          <ul className="divide-y divide-neutral-900 rounded-lg border border-neutral-800">
+          <ul className="divide-y divide-neutral-200 rounded-lg border border-neutral-200">
             {reports.map((r, i) => (
               <ReportRow key={`${r.url}:${i}`} r={r} />
             ))}
