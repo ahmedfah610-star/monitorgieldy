@@ -84,23 +84,21 @@ export async function fetchQuote(symbol: string): Promise<QuoteResult> {
   const meta = result?.meta;
   if (!meta) return { ...empty, error: "no meta" };
 
-  const close =
-    typeof meta.regularMarketPrice === "number" ? meta.regularMarketPrice : null;
-  const prevClose =
-    typeof meta.chartPreviousClose === "number"
-      ? meta.chartPreviousClose
-      : typeof meta.previousClose === "number"
-        ? meta.previousClose
-        : null;
-
-  const changePct =
-    close !== null && prevClose !== null && prevClose !== 0
-      ? ((close - prevClose) / prevClose) * 100
-      : null;
-
-  // Momentum z serii zamkniec (odfiltrowane luki/nulle, kolejnosc chronologiczna).
+  // Seria zamkniec (odfiltrowane luki/nulle, kolejnosc chronologiczna).
   const rawCloses = result?.indicators?.quote?.[0]?.close ?? [];
   const closes = rawCloses.filter((c): c is number => typeof c === "number" && Number.isFinite(c));
+  const n = closes.length;
+
+  const close =
+    typeof meta.regularMarketPrice === "number" ? meta.regularMarketPrice : n ? closes[n - 1] : null;
+  // Zmiana DZIENNA = ostatnia sesja vs poprzednia (z serii dziennej). NIE
+  // meta.chartPreviousClose — przy range=6mo to zamkniecie sprzed ~6 miesiecy,
+  // co dawalo absurdalne "dzienne" zmiany rzedu +70%.
+  const prevDay =
+    n >= 2 ? closes[n - 2] : typeof meta.previousClose === "number" ? meta.previousClose : null;
+  const changePct =
+    close !== null && prevDay !== null && prevDay !== 0 ? ((close - prevDay) / prevDay) * 100 : null;
+
   const r1m = trailingReturn(closes, 21);
   const r3m = trailingReturn(closes, 63);
 
