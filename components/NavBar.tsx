@@ -66,6 +66,8 @@ export function NavBar() {
         );
       })}
 
+      <span className="mx-1 h-5 w-px shrink-0 self-center bg-neutral-200" aria-hidden />
+
       <div ref={ref} className="relative">
         <button
           onClick={() => setOpen((v) => !v)}
@@ -75,7 +77,7 @@ export function NavBar() {
           <span className={`text-[10px] transition-transform ${open ? "rotate-180" : ""}`}>▾</span>
         </button>
         {open && (
-          <div className="absolute right-0 top-[calc(100%+8px)] z-40 w-52 rounded-xl border border-neutral-200 bg-white p-2 shadow-2xl shadow-black/50">
+          <div className="absolute right-0 top-[calc(100%+8px)] z-40 w-52 rounded-xl border border-neutral-200 bg-white p-2 shadow-xl shadow-neutral-900/10">
             {groups.map((g) => (
               <div key={g} className="mb-1 last:mb-0">
                 <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-500">{g}</p>

@@ -19,7 +19,7 @@ export default function RootLayout({
     <html lang="pl" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body>
         <header className="sticky top-0 z-30 border-b border-neutral-200 bg-white/80 backdrop-blur-xl">
-          <div className="mx-auto max-w-6xl px-4">
+          <div className="mx-auto max-w-[1360px] px-4 sm:px-6">
             <div className="flex items-center justify-between gap-4 py-3">
               <Link href="/" className="group flex items-center gap-2.5">
                 <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/30 ring-1 ring-neutral-200 transition group-hover:shadow-blue-500/50">
@@ -52,11 +52,11 @@ export default function RootLayout({
           </div>
         </header>
 
-        <div className="mx-auto max-w-6xl px-4 py-6 pb-24 sm:py-8 sm:pb-8">{children}</div>
+        <div className="mx-auto max-w-[1360px] px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-8">{children}</div>
 
         <BottomNav />
 
-        <footer className="mx-auto mt-10 hidden max-w-6xl px-4 pb-10 sm:block">
+        <footer className="mx-auto mt-10 hidden max-w-[1360px] px-4 pb-10 sm:block sm:px-6">
           <div className="flex flex-col gap-1 border-t border-neutral-200 pt-5 text-xs text-neutral-500">
             <span>
               <span className="font-semibold text-neutral-600">MarketScope</span> — profesjonalny dashboard rynkowy.
