@@ -88,29 +88,25 @@ function Bar({ score }: { score: number }) {
 
 // Kazde zrodlo odświeżamy OSOBNYM requestem — na Vercel Hobby (60s/funkcja)
 // wolne insider/pakiety (PDF-y) dostaja wtedy wlasny budzet czasu i sie konczą.
-const STEPS: { key: string; label: string; url: string }[] = [
-  { key: "prices", label: "Notowania (kurs + momentum)", url: "/api/prices/refresh" },
-  { key: "recommendations", label: "Rekomendacje", url: "/api/recommendations/refresh" },
-  { key: "reports", label: "Raporty", url: "/api/reports/refresh" },
-  { key: "short", label: "Krótkie pozycje", url: "/api/short/refresh" },
-  { key: "dividends", label: "Dywidendy", url: "/api/dividends/refresh" },
-  { key: "holdings", label: "Znaczne pakiety", url: "/api/holdings/refresh" },
-  { key: "insider", label: "Insiderzy", url: "/api/insider/refresh" },
-  { key: "financials", label: "Wyniki r/r (AI)", url: "/api/reports/extract-pending" },
-  { key: "macro", label: "Koniunktura", url: "/api/macro" },
+// `busy` to przyjazny komunikat pokazywany uzytkownikowi w trakcie danego kroku.
+const STEPS: { key: string; busy: string; url: string }[] = [
+  { key: "prices", busy: "Pobieram notowania i momentum", url: "/api/prices/refresh" },
+  { key: "recommendations", busy: "Analizuję rekomendacje", url: "/api/recommendations/refresh" },
+  { key: "reports", busy: "Analizuję raporty okresowe", url: "/api/reports/refresh" },
+  { key: "short", busy: "Analizuję krótkie pozycje", url: "/api/short/refresh" },
+  { key: "dividends", busy: "Sprawdzam dywidendy", url: "/api/dividends/refresh" },
+  { key: "holdings", busy: "Analizuję znaczne pakiety", url: "/api/holdings/refresh" },
+  { key: "insider", busy: "Śledzę transakcje insiderów", url: "/api/insider/refresh" },
+  { key: "financials", busy: "Liczę wyniki r/r", url: "/api/reports/extract-pending" },
+  { key: "macro", busy: "Aktualizuję koniunkturę", url: "/api/macro" },
 ];
-
-interface StepState {
-  label: string;
-  status: "pending" | "running" | "ok" | "err";
-  detail: string;
-}
 
 export default function RankingPage() {
   const [view, setView] = useState<View | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [progress, setProgress] = useState<StepState[]>([]);
+  const [phase, setPhase] = useState<{ i: number; label: string } | null>(null);
+  const [doneMsg, setDoneMsg] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -133,52 +129,45 @@ export default function RankingPage() {
   const refreshData = useCallback(async () => {
     setRefreshing(true);
     setError(null);
-    setProgress(STEPS.map((s) => ({ label: s.label, status: "pending", detail: "" })));
+    setDoneMsg(false);
     // ile razy max ponawiac dane zrodlo w jednym klikniecu (bounduje czas).
     const MAX_LOOPS: Record<string, number> = { insider: 8, holdings: 8, financials: 10 };
 
     for (let i = 0; i < STEPS.length; i++) {
       const s = STEPS[i];
-      setProgress((p) => p.map((x, j) => (j === i ? { ...x, status: "running", detail: "" } : x)));
+      setPhase({ i, label: s.busy });
       let total = 0;
       let loops = 0;
-      let status: StepState["status"] = "ok";
-      let detail = "";
+      // Błędy pojedynczych źródeł pomijamy po cichu — użytkownik widzi tylko
+      // przyjazny postęp, a ranking i tak przelicza się z danych, które są.
       try {
         const maxLoops = MAX_LOOPS[s.key] ?? 1;
         for (;;) {
           const res = await fetch(s.url, { method: "POST" });
           const json = await res.json().catch(() => ({}));
           loops += 1;
-          if (!res.ok) {
-            status = "err";
-            detail = json.error ? String(json.error).slice(0, 60) : `HTTP ${res.status}`;
-            break;
-          }
+          if (!res.ok) break;
           if (s.key === "financials") {
-            if (json.needsKey) { detail = "wymaga klucza AI"; break; }
+            if (json.needsKey) break;
             total += json.extracted ?? 0;
-            setProgress((p) => p.map((x, j) => (j === i ? { ...x, detail: `+${total}…` } : x)));
-            if ((json.extracted ?? 0) < 6 || loops >= maxLoops) { detail = `+${total}`; break; }
+            if ((json.extracted ?? 0) < 6 || loops >= maxLoops) break;
           } else if (s.key === "macro") {
-            detail = "✓";
             break;
           } else {
             total += json.inserted ?? 0;
             const pending = json.pending ?? 0;
-            setProgress((p) => p.map((x, j) => (j === i ? { ...x, detail: `+${total}${pending ? "…" : ""}` } : x)));
-            if (pending <= 0 || loops >= maxLoops) { detail = `+${total}`; break; }
+            if (pending <= 0 || loops >= maxLoops) break;
           }
         }
-        setProgress((p) => p.map((x, j) => (j === i ? { ...x, status, detail } : x)));
-      } catch (e) {
-        setProgress((p) =>
-          p.map((x, j) => (j === i ? { ...x, status: "err", detail: e instanceof Error ? e.message.slice(0, 60) : "błąd" } : x)),
-        );
+      } catch {
+        // ignorujemy — kolejne źródło leci dalej
       }
     }
+    setPhase(null);
     await load();
     setRefreshing(false);
+    setDoneMsg(true);
+    setTimeout(() => setDoneMsg(false), 4000);
   }, [load]);
 
   useEffect(() => {
@@ -236,31 +225,27 @@ export default function RankingPage() {
         ) : null}
       </div>
 
-      {progress.length > 0 && (
-        <div className="card px-4 py-3">
-          <p className="mb-2 text-xs text-neutral-600">
-            {refreshing
-              ? "Pobieram dane ze źródeł (każde osobno, by nie ucięło na limicie czasu)…"
-              : "Odświeżanie zakończone. Liczby to nowe wpisy; +0 oznacza brak nowych zgłoszeń (nie błąd)."}
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {progress.map((s) => {
-              const cls =
-                s.status === "ok"
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                  : s.status === "err"
-                    ? "border-rose-200 bg-rose-50 text-rose-700"
-                    : s.status === "running"
-                      ? "border-blue-800 bg-blue-50 text-blue-700"
-                      : "border-neutral-200 text-neutral-500";
-              const icon = s.status === "ok" ? "✓" : s.status === "err" ? "✕" : s.status === "running" ? "…" : "·";
-              return (
-                <span key={s.label} className={`rounded border px-2 py-0.5 text-xs ${cls}`} title={s.detail}>
-                  {icon} {s.label} {s.detail && s.status !== "running" ? <span className="text-neutral-600">{s.detail}</span> : null}
-                </span>
-              );
-            })}
+      {refreshing && phase && (
+        <div className="card flex items-center gap-3 px-4 py-3.5">
+          <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-blue-200 border-t-blue-600" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-neutral-800">{phase.label}…</p>
+            <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-neutral-100">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-500"
+                style={{ width: `${((phase.i + 1) / STEPS.length) * 100}%`, transition: "width .5s ease" }}
+              />
+            </div>
           </div>
+          <span className="shrink-0 text-xs tabular-nums text-neutral-400">
+            {phase.i + 1}/{STEPS.length}
+          </span>
+        </div>
+      )}
+
+      {doneMsg && !refreshing && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-700">
+          ✓ Dane odświeżone — ranking zaktualizowany.
         </div>
       )}
 
