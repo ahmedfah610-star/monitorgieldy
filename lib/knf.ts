@@ -1,5 +1,5 @@
 import { hasDb, upsertShortPositions, getWatchlistShortPositions } from "./db";
-import { getUniverse, mapLimit } from "./universe";
+import { getUniverse } from "./universe";
 import type { ShortPosition } from "./types";
 
 /**
@@ -37,13 +37,13 @@ function normSym(s: string): string {
   return s.toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
-/** Pobiera z rejestru KNF wpisy dla danego emitenta (po nazwie/symbolu). */
-export async function fetchShortPositions(issuerSymbol: string): Promise<KnfRecord[]> {
+/** Pobiera jedna strone rejestru KNF (RssHTable) — bez filtra po emitencie. */
+async function fetchShortPage(limit: number, offset: number): Promise<KnfRecord[]> {
   const request = JSON.stringify({
     cmd: "get",
-    search: [{ field: "ISSUER_NAME", type: "text", operator: "contains", value: issuerSymbol }],
-    limit: 500,
-    offset: 0,
+    search: [],
+    limit,
+    offset,
     method: "RssHTable",
     sort: [{ field: "POSITION_DATE", direction: "desc" }],
     searchLogic: "AND",
@@ -73,6 +73,23 @@ export async function fetchShortPositions(issuerSymbol: string): Promise<KnfReco
   throw lastErr instanceof Error ? lastErr : new Error("KNF fetch failed");
 }
 
+/**
+ * Pobiera CALY rejestr krotkiej sprzedazy KNF jednym-kilkoma zapytaniami
+ * (stronicowanie limit/offset), zamiast osobno per spolka. To eliminuje
+ * ~57 zapytan (i timeout 504) — rejestr filtrujemy potem lokalnie.
+ */
+async function fetchAllShortRecords(): Promise<KnfRecord[]> {
+  const PAGE = 2000;
+  const MAX_PAGES = 6; // zabezpieczenie: max 12k rekordow
+  const out: KnfRecord[] = [];
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const recs = await fetchShortPage(PAGE, page * PAGE);
+    out.push(...recs);
+    if (recs.length < PAGE) break;
+  }
+  return out;
+}
+
 export interface ShortRefreshSummary {
   inserted: number;
   fetched: number;
@@ -82,45 +99,50 @@ export interface ShortRefreshSummary {
 }
 
 /**
- * Dla kazdej spolki PL z watchlisty (z symbolem bankier) pobiera pozycje krotkie
- * z KNF i zapisuje nowe. Symbol bankier zwykle pokrywa sie z nazwa emitenta KNF
- * (np. "CDPROJEKT", "JSW"); dopuszczamy tez zawieranie sie nazw.
+ * Pobiera CALY rejestr krotkiej sprzedazy KNF raz (stronicowanie) i lokalnie
+ * dopasowuje wpisy do spolek PL z uniwersum po nazwie emitenta. Symbol bankier
+ * zwykle pokrywa sie z nazwa emitenta KNF (np. "CDPROJEKT", "JSW"); dopuszczamy
+ * tez zawieranie sie nazw (np. ORLEN⊂PKNORLEN). Jedno-kilka zapytan zamiast
+ * ~57 — mieszczy sie w limicie czasu funkcji.
  */
 export async function refreshShortPositions(): Promise<ShortRefreshSummary> {
   const errors: string[] = [];
   const watchlist = await getUniverse();
   const plItems = watchlist.filter((w) => w.market === "PL" && w.bankierSymbol);
 
-  const all: ShortPosition[] = [];
+  // Indeks: znormalizowany symbol emitenta -> spolka z uniwersum.
+  const universe = plItems.map((w) => ({ w, sym: normSym(w.bankierSymbol as string) }));
+
+  let records: KnfRecord[] = [];
   let fetched = 0;
-  const results = await mapLimit(plItems, 6, (w) =>
-    fetchShortPositions(w.bankierSymbol as string).then((recs) => ({ w, recs })),
-  );
-  for (const res of results) {
-    if (res.status === "rejected") {
-      errors.push(String(res.reason).slice(0, 120));
-      continue;
-    }
-    const { w, recs } = res.value;
-    fetched += recs.length;
-    const sym = normSym(w.bankierSymbol as string);
-    for (const r of recs) {
-      const issuer = decodeEntities(r.ISSUER_NAME ?? "");
-      const isu = normSym(issuer);
-      // Dopasowanie: identyczny symbol albo jeden zawiera drugi (np. ORLEN⊂PKNORLEN).
-      if (!issuer || !(isu === sym || isu.includes(sym) || sym.includes(isu))) continue;
-      const pct = Number((r.NET_SHORT_POSITION_O ?? "").replace(",", "."));
-      all.push({
-        watchTicker: w.ticker,
-        company: w.name,
-        issuerName: issuer,
-        isin: r.ISIN ? decodeEntities(r.ISIN) : null,
-        holder: decodeEntities(r.HOLDER_FULL_NAME ?? "") || "—",
-        netShortPct: Number.isFinite(pct) ? pct : null,
-        positionDate: r.POSITION_DATE ?? null,
-        modifyDate: r.MODIFY_DATE ?? null,
-      });
-    }
+  try {
+    records = await fetchAllShortRecords();
+    fetched = records.length;
+  } catch (e) {
+    errors.push(String(e).slice(0, 160));
+  }
+
+  const all: ShortPosition[] = [];
+  for (const r of records) {
+    const issuer = decodeEntities(r.ISSUER_NAME ?? "");
+    if (!issuer) continue;
+    const isu = normSym(issuer);
+    // Dopasowanie: identyczny symbol albo jeden zawiera drugi.
+    const hit = universe.find(
+      ({ sym }) => isu === sym || isu.includes(sym) || sym.includes(isu),
+    );
+    if (!hit) continue;
+    const pct = Number((r.NET_SHORT_POSITION_O ?? "").replace(",", "."));
+    all.push({
+      watchTicker: hit.w.ticker,
+      company: hit.w.name,
+      issuerName: issuer,
+      isin: r.ISIN ? decodeEntities(r.ISIN) : null,
+      holder: decodeEntities(r.HOLDER_FULL_NAME ?? "") || "—",
+      netShortPct: Number.isFinite(pct) ? pct : null,
+      positionDate: r.POSITION_DATE ?? null,
+      modifyDate: r.MODIFY_DATE ?? null,
+    });
   }
 
   const { inserted } = await upsertShortPositions(all);
