@@ -513,6 +513,23 @@ export async function getWatchlistReports(limit = 60): Promise<Report[]> {
   return rows;
 }
 
+/** Raporty okresowe danej spolki (po tickerze), najnowsze pierwsze. */
+export async function getCompanyReports(ticker: string, limit = 20): Promise<Report[]> {
+  const { rows } = await sql.query<Report>(
+    `SELECT
+       watch_ticker AS "watchTicker", market, source, company, title,
+       report_type AS "reportType", period, url,
+       to_char(published_at, 'YYYY-MM-DD"T"HH24:MI') AS "publishedAt",
+       extracted_json AS "extractedJson"
+     FROM reports
+     WHERE watch_ticker = $1
+     ORDER BY published_at DESC NULLS LAST, created_at DESC
+     LIMIT $2;`,
+    [ticker, limit],
+  );
+  return rows;
+}
+
 /** Zapisuje wynik ekstrakcji AI dla raportu (po URL). Zwraca kontekst raportu. */
 interface ReportContext {
   watchTicker: string | null;

@@ -5,6 +5,7 @@ import { GeistMono } from "geist/font/mono";
 import { NavBar } from "@/components/NavBar";
 import { IndexTicker } from "@/components/IndexTicker";
 import { BottomNav } from "@/components/BottomNav";
+import { CompanySearch } from "@/components/CompanySearch";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -20,8 +21,8 @@ export default function RootLayout({
       <body>
         <header className="sticky top-0 z-30 border-b border-neutral-200 bg-white/80 backdrop-blur-xl">
           <div className="mx-auto max-w-[1360px] px-4 sm:px-6">
-            <div className="flex items-center justify-between gap-4 py-3">
-              <Link href="/" className="group flex items-center gap-2.5">
+            <div className="flex items-center gap-3 py-3">
+              <Link href="/" className="group flex shrink-0 items-center gap-2.5">
                 <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/30 ring-1 ring-neutral-200 transition group-hover:shadow-blue-500/50">
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M3 17l5-5 4 3 7-8" />
@@ -32,12 +33,15 @@ export default function RootLayout({
                   <span className="text-[15px] font-semibold tracking-tight text-neutral-900">
                     Market<span className="text-blue-600">Scope</span>
                   </span>
-                  <span className="mt-1 text-[10px] font-medium uppercase tracking-[0.16em] text-neutral-500">
+                  <span className="mt-1 hidden text-[10px] font-medium uppercase tracking-[0.16em] text-neutral-500 sm:block">
                     GPW · USA · Makro
                   </span>
                 </span>
               </Link>
-              <div className="hidden items-center gap-2 sm:flex">
+              <div className="ml-auto w-full max-w-[180px] sm:max-w-sm">
+                <CompanySearch compact />
+              </div>
+              <div className="hidden shrink-0 items-center gap-2 sm:flex">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
                   <span className="relative flex h-1.5 w-1.5">
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />

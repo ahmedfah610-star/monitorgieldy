@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import type { RankingEntry, RankingComponent } from "@/lib/types";
 
 interface View {
@@ -283,7 +284,7 @@ export default function RankingPage() {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <span className="truncate text-[15px] font-semibold text-neutral-900">{e.company}</span>
+                    <Link href={`/company/${e.ticker}`} className="truncate text-[15px] font-semibold text-neutral-900 hover:text-blue-600 hover:underline">{e.company}</Link>
                     <span className="ml-1.5 font-mono text-xs uppercase text-neutral-500">{e.ticker}</span>
                     <span className="ml-1 rounded bg-neutral-100 px-1 py-px text-[9px] font-medium text-neutral-600">{e.market}</span>
                   </div>

@@ -1,4 +1,4 @@
-import { getWatchlist } from "./db";
+import { getWatchlist, hasDb, DEFAULT_WATCHLIST } from "./db";
 import { GPW_COMPANIES } from "./gpwCompanies";
 import type { WatchlistItem } from "./types";
 
@@ -10,7 +10,9 @@ import type { WatchlistItem } from "./types";
  * wlasnych pozycji ponad katalog.
  */
 export async function getUniverse(): Promise<WatchlistItem[]> {
-  const wl = await getWatchlist();
+  // Bez bazy dzialamy na domyslnej watchliscie (tryb fallback) — katalog GPW
+  // i tak jest wbudowany, wiec profil/wyszukiwarka dzialaja przed podpieciem DB.
+  const wl = hasDb() ? await getWatchlist() : DEFAULT_WATCHLIST;
   const seen = new Set(wl.map((w) => `${w.market}:${w.ticker.toLowerCase()}`));
   const catalog: WatchlistItem[] = GPW_COMPANIES.filter(
     (c) => !seen.has(`PL:${c.ticker.toLowerCase()}`),
