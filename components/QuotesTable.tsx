@@ -1,10 +1,12 @@
 import type { Quote } from "@/lib/types";
 import { fmtPrice, fmtPct, changeColor } from "@/lib/format";
 
-export function QuotesTable({ quotes }: { quotes: Quote[] }) {
+export function QuotesTable({ quotes, horizon = "1D" }: { quotes: Quote[]; horizon?: string }) {
   if (quotes.length === 0) {
     return <p className="text-sm text-neutral-500">Brak pozycji.</p>;
   }
+  const chg = (q: Quote): number | null =>
+    horizon === "1D" ? q.changePct : q.returns?.[horizon] ?? null;
 
   return (
     <div className="card overflow-x-auto">
@@ -14,14 +16,15 @@ export function QuotesTable({ quotes }: { quotes: Quote[] }) {
             <th className="px-3 py-2.5 font-medium">Nazwa</th>
             <th className="px-3 py-2.5 font-medium">Symbol</th>
             <th className="px-3 py-2.5 text-right font-medium">Kurs</th>
-            <th className="px-3 py-2.5 text-right font-medium">Zmiana</th>
+            <th className="px-3 py-2.5 text-right font-medium">Zmiana {horizon}</th>
             <th className="px-3 py-2.5 text-right font-medium">Sesja</th>
           </tr>
         </thead>
         <tbody>
           {quotes.map((q) => {
-            const up = (q.changePct ?? 0) > 0;
-            const down = (q.changePct ?? 0) < 0;
+            const v = chg(q);
+            const up = (v ?? 0) > 0;
+            const down = (v ?? 0) < 0;
             return (
               <tr
                 key={`${q.market}:${q.symbol}`}
@@ -41,10 +44,10 @@ export function QuotesTable({ quotes }: { quotes: Quote[] }) {
                     </>
                   )}
                 </td>
-                <td className={`px-3 py-2.5 text-right tabular-nums font-medium ${changeColor(q.changePct)}`}>
-                  {q.error ? "—" : (
+                <td className={`px-3 py-2.5 text-right tabular-nums font-medium ${changeColor(v)}`}>
+                  {q.error || v == null ? "—" : (
                     <span className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 ${up ? "bg-emerald-500/10" : down ? "bg-rose-500/10" : ""}`}>
-                      {up ? "▲" : down ? "▼" : ""} {fmtPct(q.changePct)}
+                      {up ? "▲" : down ? "▼" : ""} {fmtPct(v)}
                     </span>
                   )}
                 </td>

@@ -38,6 +38,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fetchedAt, setFetchedAt] = useState<string | null>(null);
+  const [horizon, setHorizon] = useState<string>("1D");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -102,22 +103,51 @@ export default function DashboardPage() {
 
       {!quotes && !error && <p className="text-sm text-neutral-500">Ładowanie…</p>}
 
+      {/* --- Przełącznik horyzontu --- */}
+      {quotes && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium uppercase tracking-wide text-neutral-500">Horyzont</span>
+          <div className="inline-flex gap-1 rounded-lg border border-neutral-200 bg-white p-0.5">
+            {HORIZONS.map((h) => (
+              <button
+                key={h.key}
+                onClick={() => setHorizon(h.key)}
+                className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
+                  horizon === h.key ? "bg-blue-600 text-white shadow-sm" : "text-neutral-600 hover:bg-neutral-100"
+                }`}
+                title={h.title}
+              >
+                {h.key}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* --- Notowania --- */}
       {quotes && (
         <>
           <Section title="Indeksy">
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
               {quotes.indices.map((q) => (
-                <IndexTile key={q.symbol} label={q.label} symbol={q.symbol} close={q.close} changePct={q.changePct} currency={q.currency} />
+                <IndexTile
+                  key={q.symbol}
+                  label={q.label}
+                  symbol={q.symbol}
+                  close={q.close}
+                  changePct={horizon === "1D" ? q.changePct : q.returns?.[horizon] ?? null}
+                  currency={q.currency}
+                  horizon={horizon}
+                />
               ))}
             </div>
           </Section>
           <div className="grid gap-8 lg:grid-cols-2">
             <Section title="Rynek PL (GPW)">
-              <QuotesTable quotes={quotes.pl} />
+              <QuotesTable quotes={quotes.pl} horizon={horizon} />
             </Section>
             <Section title="Rynek USA">
-              <QuotesTable quotes={quotes.us} />
+              <QuotesTable quotes={quotes.us} horizon={horizon} />
             </Section>
           </div>
         </>
@@ -187,8 +217,17 @@ export default function DashboardPage() {
   );
 }
 
-function IndexTile({ label, symbol, close, changePct, currency }: {
-  label: string; symbol: string; close: number | null; changePct: number | null; currency: string | null;
+const HORIZONS: { key: string; title: string }[] = [
+  { key: "1D", title: "1 dzień" },
+  { key: "1T", title: "1 tydzień" },
+  { key: "1M", title: "1 miesiąc" },
+  { key: "3M", title: "3 miesiące" },
+  { key: "6M", title: "6 miesięcy" },
+  { key: "1R", title: "1 rok" },
+];
+
+function IndexTile({ label, symbol, close, changePct, currency, horizon }: {
+  label: string; symbol: string; close: number | null; changePct: number | null; currency: string | null; horizon: string;
 }) {
   const up = (changePct ?? 0) > 0;
   const down = (changePct ?? 0) < 0;
@@ -207,8 +246,9 @@ function IndexTile({ label, symbol, close, changePct, currency }: {
       <div className="mt-2 text-xl font-bold tabular-nums text-neutral-900">
         {close == null ? "—" : close.toLocaleString("pl-PL", { maximumFractionDigits: 2 })}
       </div>
-      <div className="mt-0.5 font-mono text-[10px] uppercase text-neutral-500">
-        {symbol}{currency ? ` · ${currency}` : ""}
+      <div className="mt-0.5 flex items-center justify-between font-mono text-[10px] uppercase text-neutral-500">
+        <span>{symbol}{currency ? ` · ${currency}` : ""}</span>
+        <span className="text-neutral-400">{horizon}</span>
       </div>
     </div>
   );

@@ -17,6 +17,7 @@ async function quoteFor(
     symbol,
     close: r.close,
     changePct: r.changePct,
+    returns: r.returns,
     currency: r.currency,
     date: r.date,
     error: r.error,

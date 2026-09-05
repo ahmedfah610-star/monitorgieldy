@@ -294,6 +294,8 @@ export interface Quote {
   symbol: string;
   close: number | null;
   changePct: number | null;
+  /** Zwroty % dla horyzontow (1D/1T/1M/3M/6M/1R) — do przelacznika okresu. */
+  returns?: Record<string, number | null>;
   /** Waluta notowania (np. "PLN", "USD"). */
   currency: string | null;
   /** Data ostatniej sesji (YYYY-MM-DD). */

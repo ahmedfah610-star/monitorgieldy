@@ -26,6 +26,12 @@ export function toYahooSymbol(ticker: string, market: Market): string {
   return t; // US: ticker bez sufiksu
 }
 
+/** Horyzonty stopy zwrotu (klucz -> % zwrotu) dla przelacznika okresu. */
+export type ReturnHorizon = "1D" | "1T" | "1M" | "3M" | "6M" | "1R";
+export const HORIZON_BACK: Record<ReturnHorizon, number> = {
+  "1D": 1, "1T": 5, "1M": 21, "3M": 63, "6M": 126, "1R": 252,
+};
+
 export interface QuoteResult {
   close: number | null;
   changePct: number | null;
@@ -33,6 +39,7 @@ export interface QuoteResult {
   currency: string | null;
   r1m: number | null; // stopa zwrotu za ~21 sesji (ulamek), null gdy brak historii
   r3m: number | null; // stopa zwrotu za ~63 sesje (ulamek)
+  returns: Partial<Record<ReturnHorizon, number | null>>; // zwroty % dla horyzontow
   error?: string;
 }
 
@@ -52,9 +59,9 @@ function epochToDate(sec: number | undefined): string | null {
 }
 
 export async function fetchQuote(symbol: string): Promise<QuoteResult> {
-  // 6mo historii dziennej — starcza na biezacy kurs, zmiane dzienna i momentum 1M/3M.
-  const url = `${CHART_BASE}${encodeURIComponent(symbol)}?range=6mo&interval=1d`;
-  const empty: QuoteResult = { close: null, changePct: null, date: null, currency: null, r1m: null, r3m: null };
+  // 1y historii dziennej — starcza na kurs, zmiane dzienna, momentum i zwroty do 1R.
+  const url = `${CHART_BASE}${encodeURIComponent(symbol)}?range=1y&interval=1d`;
+  const empty: QuoteResult = { close: null, changePct: null, date: null, currency: null, r1m: null, r3m: null, returns: {} };
 
   let json: unknown;
   try {
@@ -102,6 +109,20 @@ export async function fetchQuote(symbol: string): Promise<QuoteResult> {
   const r1m = trailingReturn(closes, 21);
   const r3m = trailingReturn(closes, 63);
 
+  // Zwroty % dla wszystkich horyzontow (1D bierze wyliczona zmiane dzienna).
+  const returns: Partial<Record<ReturnHorizon, number | null>> = {};
+  for (const h of Object.keys(HORIZON_BACK) as ReturnHorizon[]) {
+    if (h === "1D") {
+      returns[h] = changePct;
+    } else {
+      // Przytnij okno do dostepnej historii (np. 1R przy ~251 sesjach = od
+      // najwczesniejszej dostepnej sesji ~rok temu), by nie zwracac b/d.
+      const back = Math.min(HORIZON_BACK[h], n - 1);
+      const r = back >= 1 ? trailingReturn(closes, back) : null;
+      returns[h] = r === null ? null : r * 100;
+    }
+  }
+
   return {
     close,
     changePct,
@@ -109,6 +130,7 @@ export async function fetchQuote(symbol: string): Promise<QuoteResult> {
     currency: (meta.currency as string) ?? null,
     r1m,
     r3m,
+    returns,
   };
 }
 
