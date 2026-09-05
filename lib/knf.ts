@@ -77,17 +77,32 @@ async function fetchShortPage(limit: number, offset: number): Promise<KnfRecord[
  * Pobiera CALY rejestr krotkiej sprzedazy KNF jednym-kilkoma zapytaniami
  * (stronicowanie limit/offset), zamiast osobno per spolka. To eliminuje
  * ~57 zapytan (i timeout 504) — rejestr filtrujemy potem lokalnie.
+ *
+ * Tolerancyjne: jesli ktoras strona padnie (KNF czasem zwraca nie-JSON),
+ * zwracamy to, co udalo sie pobrac, zamiast wywalac calosc. Budzet czasowy
+ * gwarantuje, ze funkcja nie przekroczy limitu Vercela.
  */
-async function fetchAllShortRecords(): Promise<KnfRecord[]> {
-  const PAGE = 2000;
-  const MAX_PAGES = 6; // zabezpieczenie: max 12k rekordow
+async function fetchAllShortRecords(): Promise<{ records: KnfRecord[]; errors: string[] }> {
+  const PAGE = 1000;
+  const MAX_PAGES = 12; // zabezpieczenie: max 12k rekordow
+  const DEADLINE = Date.now() + 45_000; // twardy budzet < 60s limitu funkcji
   const out: KnfRecord[] = [];
+  const errors: string[] = [];
   for (let page = 0; page < MAX_PAGES; page++) {
-    const recs = await fetchShortPage(PAGE, page * PAGE);
-    out.push(...recs);
-    if (recs.length < PAGE) break;
+    if (Date.now() > DEADLINE) {
+      errors.push("KNF: przekroczono budzet czasu, zwracam czesciowe dane");
+      break;
+    }
+    try {
+      const recs = await fetchShortPage(PAGE, page * PAGE);
+      out.push(...recs);
+      if (recs.length < PAGE) break;
+    } catch (e) {
+      errors.push(`KNF strona ${page}: ${String(e).slice(0, 100)}`);
+      break;
+    }
   }
-  return out;
+  return { records: out, errors };
 }
 
 export interface ShortRefreshSummary {
@@ -113,14 +128,9 @@ export async function refreshShortPositions(): Promise<ShortRefreshSummary> {
   // Indeks: znormalizowany symbol emitenta -> spolka z uniwersum.
   const universe = plItems.map((w) => ({ w, sym: normSym(w.bankierSymbol as string) }));
 
-  let records: KnfRecord[] = [];
-  let fetched = 0;
-  try {
-    records = await fetchAllShortRecords();
-    fetched = records.length;
-  } catch (e) {
-    errors.push(String(e).slice(0, 160));
-  }
+  const { records, errors: fetchErrors } = await fetchAllShortRecords();
+  errors.push(...fetchErrors);
+  const fetched = records.length;
 
   const all: ShortPosition[] = [];
   for (const r of records) {
