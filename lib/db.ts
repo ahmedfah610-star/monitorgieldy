@@ -942,6 +942,19 @@ export async function deletePortfolioPosition(id: number): Promise<void> {
   await sql`DELETE FROM portfolio WHERE id = ${id};`;
 }
 
+/** Najnowsza stopa dywidendy per ticker (do screenera). */
+export async function getDividendYields(): Promise<Map<string, number>> {
+  const { rows } = await sql<{ ticker: string; yieldPct: number }>`
+    SELECT DISTINCT ON (watch_ticker) watch_ticker AS ticker, yield_pct::float8 AS "yieldPct"
+    FROM dividends
+    WHERE watch_ticker IS NOT NULL AND yield_pct IS NOT NULL AND yield_pct > 0
+    ORDER BY watch_ticker, record_date DESC NULLS LAST;
+  `;
+  const map = new Map<string, number>();
+  for (const r of rows) map.set(r.ticker, r.yieldPct);
+  return map;
+}
+
 // ---------- Analiza AI koniunktury sektora (Faza 23) ----------
 
 /** Samonaprawa schematu — tabela tworzona na zadanie (bez recznego /api/init-db). */
