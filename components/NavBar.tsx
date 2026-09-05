@@ -4,17 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-// Podstawowe (zawsze widoczne) — najważniejsze narzędzia.
+// Podstawowe (zawsze widoczne) — najważniejsze narzędzia + strefa klienta.
 const PRIMARY: { href: string; label: string }[] = [
   { href: "/", label: "Pulpit" },
   { href: "/ranking", label: "Ranking" },
   { href: "/screener", label: "Screener" },
   { href: "/heatmap", label: "Heatmapa" },
-  { href: "/portfolio", label: "Portfel" },
   { href: "/macro", label: "Makro" },
+  { href: "/account", label: "Strefa klienta" },
 ];
 
-// Reszta — pod „Więcej" (dane i analizy szczegółowe).
+// Reszta — pod „Więcej" (dane rynkowe i sygnały). Rzeczy osobiste są w Strefie klienta.
 const MORE: { href: string; label: string; group: string }[] = [
   { href: "/recommendations", label: "Rekomendacje", group: "Dane rynkowe" },
   { href: "/reports", label: "Raporty", group: "Dane rynkowe" },
@@ -22,9 +22,10 @@ const MORE: { href: string; label: string; group: string }[] = [
   { href: "/insider", label: "Insiderzy", group: "Sygnały" },
   { href: "/short", label: "Shorty", group: "Sygnały" },
   { href: "/holdings", label: "Pakiety", group: "Sygnały" },
-  { href: "/outlook", label: "Perspektywy", group: "Analizy" },
-  { href: "/forecast", label: "Prognozy", group: "Analizy" },
-  { href: "/watchlist", label: "Watchlista", group: "Ustawienia" },
+  { href: "/portfolio", label: "Portfel", group: "Strefa klienta" },
+  { href: "/watchlist", label: "Watchlista", group: "Strefa klienta" },
+  { href: "/outlook", label: "Perspektywy", group: "Strefa klienta" },
+  { href: "/forecast", label: "Prognozy", group: "Strefa klienta" },
 ];
 
 export function NavBar() {

@@ -8,7 +8,7 @@ const ITEMS: { href: string; label: string; icon: React.ReactNode }[] = [
   { href: "/ranking", label: "Ranking", icon: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /> },
   { href: "/screener", label: "Screener", icon: <><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></> },
   { href: "/heatmap", label: "Mapa", icon: <><rect x="3" y="3" width="8" height="8" rx="1" /><rect x="13" y="3" width="8" height="5" rx="1" /><rect x="3" y="13" width="5" height="8" rx="1" /><rect x="10" y="13" width="11" height="8" rx="1" /></> },
-  { href: "/portfolio", label: "Portfel", icon: <><rect x="2" y="6" width="20" height="14" rx="2" /><path d="M2 10h20M7 3h10" /></> },
+  { href: "/account", label: "Konto", icon: <><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 4-6 8-6s8 2 8 6" /></> },
 ];
 
 export function BottomNav() {
