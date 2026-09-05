@@ -189,12 +189,6 @@ export default function RankingPage() {
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900">
               Ranking atrakcyjności
             </h1>
-            <p className="mt-2 text-sm leading-relaxed text-neutral-600">
-              Najwyższa oczekiwana stopa zwrotu od <strong className="text-neutral-800">bieżącej
-              ceny</strong>, przy zdrowych fundamentach i sygnałach smart money. Rdzeń wskaźnika:{" "}
-              <strong className="text-neutral-800">Wycena (C/Z + EV/EBITDA + C/WK) · Jakość (ROE) ·
-              Momentum</strong>, wszystko względem sektora. Cały katalog GPW automatycznie.
-            </p>
           </div>
           <div className="flex flex-col items-stretch gap-2">
             <button
