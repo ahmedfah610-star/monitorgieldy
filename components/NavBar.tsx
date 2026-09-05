@@ -50,7 +50,7 @@ export function NavBar() {
   const groups = [...new Set(MORE.map((l) => l.group))];
 
   return (
-    <nav className="-mx-4 flex items-center gap-1 overflow-x-auto px-4 pb-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <nav className="-mx-4 hidden items-center gap-1 overflow-x-auto px-4 pb-2.5 sm:flex [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {PRIMARY.map((l) => {
         const active = isActive(l.href);
         return (
