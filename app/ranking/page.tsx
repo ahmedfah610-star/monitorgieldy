@@ -86,7 +86,7 @@ function Bar({ score }: { score: number }) {
   );
 }
 
-// Kazde zrodlo odswiezamy OSOBNYM requestem — na Vercel Hobby (60s/funkcja)
+// Kazde zrodlo odświeżamy OSOBNYM requestem — na Vercel Hobby (60s/funkcja)
 // wolne insider/pakiety (PDF-y) dostaja wtedy wlasny budzet czasu i sie konczą.
 const STEPS: { key: string; label: string; url: string }[] = [
   { key: "prices", label: "Notowania (kurs + momentum)", url: "/api/prices/refresh" },
@@ -121,13 +121,13 @@ export default function RankingPage() {
       if (res.error) throw new Error(res.error);
       setView(res);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Nie udalo sie policzyc rankingu.");
+      setError(e instanceof Error ? e.message : "Nie udało sie policzyc rankingu.");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Sekwencyjnie odswieza wszystkie zrodla dla calego katalogu (tylko nowe —
+  // Sekwencyjnie odświeża wszystkie zrodla dla calego katalogu (tylko nowe —
   // dedup). Zrodla z limitem na przebieg (insider/pakiety/wyniki) sa ZAPETLANE
   // az wyczerpia sie nowe wpisy — jedno klikniecie laduje komplet.
   const refreshData = useCallback(async () => {

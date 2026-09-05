@@ -105,7 +105,7 @@ export default function ForecastPage() {
       if (res.error) throw new Error(res.error);
       setView(res);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Nie udalo sie policzyc prognoz.");
+      setError(e instanceof Error ? e.message : "Nie udało sie policzyc prognoz.");
     } finally {
       setLoading(false);
     }
@@ -117,9 +117,9 @@ export default function ForecastPage() {
 
   return (
     <main className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="card flex flex-wrap items-center justify-between gap-3 p-5">
         <div>
-          <h1 className="text-2xl font-semibold">Prognozy przychodów</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-neutral-50">Prognozy przychodów</h1>
           <p className="max-w-2xl text-xs text-neutral-500">
             Szacunek MarketScope: prognozowana dynamika przychodów = <strong>trend firmy</strong> (z
             raportów) + <strong>typowa dynamika branży</strong> + <strong>korekta makro</strong>
@@ -130,21 +130,21 @@ export default function ForecastPage() {
         <button
           onClick={load}
           disabled={loading}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+          className="btn btn-primary"
         >
           {loading ? "Liczę…" : "Przelicz"}
         </button>
       </div>
 
       {view && !view.usingDb && (
-        <div className="rounded-md border border-amber-900 bg-amber-950/40 px-4 py-3 text-sm text-amber-300">
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
           Wymaga bazy (Vercel Postgres). Najlepsze prognozy po analizie raportów (przycisk „Analizuj"
           na Raportach) i odświeżeniu sekcji Makro.
         </div>
       )}
 
       {error && (
-        <div className="rounded-md border border-red-900 bg-red-950/50 px-4 py-3 text-sm text-red-300">
+        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
           Błąd: {error}
         </div>
       )}

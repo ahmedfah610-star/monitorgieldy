@@ -44,7 +44,7 @@ export default function PortfolioPage() {
       if (res.error) throw new Error(res.error);
       setView(res);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Nie udalo sie pobrac portfela.");
+      setError(e instanceof Error ? e.message : "Nie udało sie pobrac portfela.");
     } finally {
       setLoading(false);
     }
@@ -72,7 +72,7 @@ export default function PortfolioPage() {
       setSector("");
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Nie udalo sie dodac pozycji.");
+      setError(e instanceof Error ? e.message : "Nie udało sie dodac pozycji.");
     } finally {
       setSaving(false);
     }
@@ -87,7 +87,7 @@ export default function PortfolioPage() {
       if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Nie udalo sie usunac.");
+      setError(e instanceof Error ? e.message : "Nie udało sie usunac.");
     }
   }
 
@@ -95,9 +95,10 @@ export default function PortfolioPage() {
 
   return (
     <main className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Twoje portfolio</h1>
-        <p className="max-w-2xl text-xs text-neutral-500">
+      <div className="card p-5">
+        <p className="eyebrow">Portfel</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-neutral-50">Twoje portfolio</h1>
+        <p className="mt-2 max-w-2xl text-sm text-neutral-400">
           Wpisz spółki, które masz, i wielkość pozycji w PLN lub USD (USD przeliczamy na PLN po
           kursie {view?.usdPln ?? 3.75}). Branża podpina się automatycznie; poniżej rozbicie
           portfela na branże z sugestią dywersyfikacji. Bez AI.
@@ -105,14 +106,14 @@ export default function PortfolioPage() {
       </div>
 
       {view && !view.usingDb && (
-        <div className="rounded-md border border-amber-900 bg-amber-950/40 px-4 py-3 text-sm text-amber-300">
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
           Portfel wymaga bazy (Vercel Postgres). Ustaw <code>POSTGRES_URL</code> i uruchom{" "}
           <code>/api/init-db</code>, aby zapisywać pozycje.
         </div>
       )}
 
       {error && (
-        <div className="rounded-md border border-red-900 bg-red-950/50 px-4 py-3 text-sm text-red-300">
+        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
           {error}
         </div>
       )}
@@ -160,7 +161,7 @@ export default function PortfolioPage() {
           </select>
         </label>
         <button type="submit" disabled={saving || (view != null && !view.usingDb)}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50">
+          className="btn btn-primary">
           {saving ? "Dodaję…" : "Dodaj"}
         </button>
       </form>

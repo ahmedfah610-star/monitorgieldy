@@ -109,7 +109,7 @@ function CompanyConclusion({
       if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
       setConclusion({ text: json.text, period: json.period, createdAt: new Date().toISOString() });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Nie udalo sie wygenerowac wnioskow.");
+      setError(e instanceof Error ? e.message : "Nie udało sie wygenerowac wnioskow.");
     } finally {
       setBusy(false);
     }
@@ -205,7 +205,7 @@ function ReportRow({ r }: { r: Report }) {
       if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
       setExtracted(json.extracted);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Nie udalo sie przeanalizowac raportu.");
+      setError(e instanceof Error ? e.message : "Nie udało sie przeanalizowac raportu.");
     } finally {
       setBusy(false);
     }
@@ -269,7 +269,7 @@ export default function ReportsPage() {
       }
       setRecsByTicker(map);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Nie udalo sie pobrac raportow.");
+      setError(e instanceof Error ? e.message : "Nie udało sie pobrac raportow.");
     } finally {
       setLoading(false);
     }
@@ -290,7 +290,7 @@ export default function ReportsPage() {
       setSummary(json);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Nie udalo sie odswiezyc raportow.");
+      setError(e instanceof Error ? e.message : "Nie udało sie odświeżyc raportow.");
     } finally {
       setRefreshing(false);
     }
@@ -308,32 +308,32 @@ export default function ReportsPage() {
 
   return (
     <main className="space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="card flex flex-wrap items-center justify-between gap-3 p-5">
         <div>
-          <h1 className="text-2xl font-semibold">Raporty okresowe</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-neutral-50">Raporty okresowe</h1>
           <p className="text-xs text-neutral-500">
-            Komunikaty ESPI/EBI dla spółek PL z watchlisty. „Odswiez raporty" dodaje tylko nowe (bez AI).
+            Komunikaty ESPI/EBI dla spółek PL z watchlisty. „Odśwież raporty" dodaje tylko nowe (bez AI).
             „Analizuj" wyciąga liczby przez AI raz i zapisuje — stare raporty nie idą ponownie do API.
           </p>
         </div>
         <button
           onClick={refresh}
           disabled={refreshing}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+          className="btn btn-primary"
         >
-          {refreshing ? "Odswiezam…" : "Odswiez raporty"}
+          {refreshing ? "Odświeżam…" : "Odśwież raporty"}
         </button>
       </div>
 
       {view && !view.usingDb && (
-        <div className="rounded-md border border-amber-900 bg-amber-950/40 px-4 py-3 text-sm text-amber-300">
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
           Baza nie jest skonfigurowana — raporty wymagają Vercel Postgres (do zapisu i wykrywania nowych).
           Ustaw <code>POSTGRES_URL</code> i uruchom <code>/api/init-db</code>.
         </div>
       )}
 
       {error && (
-        <div className="rounded-md border border-red-900 bg-red-950/50 px-4 py-3 text-sm text-red-300">
+        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
           Błąd: {error}
         </div>
       )}
@@ -341,7 +341,7 @@ export default function ReportsPage() {
       {summary && (
         <div className="rounded-md border border-neutral-800 bg-neutral-900/50 px-4 py-3 text-sm">
           <p className="text-neutral-200">
-            Odswiezono: znaleziono {summary.fetched}, nowych{" "}
+            Odświeżono: znaleziono {summary.fetched}, nowych{" "}
             <span className="font-semibold text-up">{summary.inserted}</span>.
           </p>
           {summary.errors.length > 0 && (
@@ -358,7 +358,7 @@ export default function ReportsPage() {
 
       {view && grouped.length === 0 && (
         <p className="text-sm text-neutral-500">
-          Brak zapisanych raportów. Kliknij „Odswiez raporty", aby pobrać komunikaty.
+          Brak zapisanych raportów. Kliknij „Odśwież raporty", aby pobrać komunikaty.
         </p>
       )}
 

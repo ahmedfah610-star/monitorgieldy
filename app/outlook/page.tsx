@@ -111,7 +111,7 @@ export default function OutlookPage() {
       setOutlooks(ov.outlooks ?? {});
       setUsingDb(Boolean(ov.usingDb) && !wl.usingFallback);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Nie udalo sie pobrac danych.");
+      setError(e instanceof Error ? e.message : "Nie udało sie pobrac danych.");
     } finally {
       setLoading(false);
     }
@@ -145,9 +145,10 @@ export default function OutlookPage() {
 
   return (
     <main className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Perspektywy spółek</h1>
-        <p className="max-w-2xl text-xs text-neutral-500">
+      <div className="card p-5">
+        <p className="eyebrow">Analiza AI</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-neutral-50">Perspektywy spółek</h1>
+        <p className="mt-2 max-w-2xl text-sm text-neutral-400">
           AI syntetyzuje atuty obecne, szanse i zagrożenia na przyszłość na podstawie wszystkich
           zebranych sygnałów (wyniki, rekomendacje, insiderzy, shorty, znaczne pakiety, dywidendy).
           Analiza na żądanie, wynik zapisywany — ponowna tylko na wyraźne kliknięcie.
@@ -155,14 +156,14 @@ export default function OutlookPage() {
       </div>
 
       {!usingDb && (
-        <div className="rounded-md border border-amber-900 bg-amber-950/40 px-4 py-3 text-sm text-amber-300">
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
           Wymaga bazy (Vercel Postgres) oraz <code>ANTHROPIC_API_KEY</code>. Ustaw{" "}
           <code>POSTGRES_URL</code>, uruchom <code>/api/init-db</code> i dodaj klucz Anthropic.
         </div>
       )}
 
       {error && (
-        <div className="rounded-md border border-red-900 bg-red-950/50 px-4 py-3 text-sm text-red-300">
+        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
           Błąd: {error}
         </div>
       )}

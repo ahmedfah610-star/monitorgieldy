@@ -116,7 +116,7 @@ export default function ShortPage() {
       if (res.error) throw new Error(res.error);
       setView(res);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Nie udalo sie pobrac pozycji.");
+      setError(e instanceof Error ? e.message : "Nie udało sie pobrac pozycji.");
     } finally {
       setLoading(false);
     }
@@ -137,7 +137,7 @@ export default function ShortPage() {
       setSummary(json);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Nie udalo sie odswiezyc.");
+      setError(e instanceof Error ? e.message : "Nie udało sie odświeżyc.");
     } finally {
       setRefreshing(false);
     }
@@ -147,9 +147,9 @@ export default function ShortPage() {
 
   return (
     <main className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="card flex flex-wrap items-center justify-between gap-3 p-5">
         <div>
-          <h1 className="text-2xl font-semibold">Krótkie pozycje (KNF)</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-neutral-50">Krótkie pozycje (KNF)</h1>
           <p className="max-w-2xl text-xs text-neutral-500">
             Kto gra na spadek Twoich spółek — z rejestru krótkiej sprzedaży KNF (pozycje netto
             ≥0,5%). Dane publiczne, bez AI. „Łączna" sumuje bieżące pozycje funduszy;
@@ -159,21 +159,21 @@ export default function ShortPage() {
         <button
           onClick={refresh}
           disabled={refreshing}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+          className="btn btn-primary"
         >
-          {refreshing ? "Odswiezam…" : "Odswiez"}
+          {refreshing ? "Odświeżam…" : "Odśwież"}
         </button>
       </div>
 
       {view && !view.usingDb && (
-        <div className="rounded-md border border-amber-900 bg-amber-950/40 px-4 py-3 text-sm text-amber-300">
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
           Baza nie jest skonfigurowana — wymaga Vercel Postgres. Ustaw <code>POSTGRES_URL</code> i
           uruchom <code>/api/init-db</code>.
         </div>
       )}
 
       {error && (
-        <div className="rounded-md border border-red-900 bg-red-950/50 px-4 py-3 text-sm text-red-300">
+        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
           Błąd: {error}
         </div>
       )}
@@ -198,7 +198,7 @@ export default function ShortPage() {
 
       {view && groups.length === 0 && !loading && (
         <p className="text-sm text-neutral-500">
-          Brak zapisanych pozycji. Kliknij „Odswiez", aby pobrać rejestr KNF dla spółek PL z
+          Brak zapisanych pozycji. Kliknij „Odśwież", aby pobrać rejestr KNF dla spółek PL z
           watchlisty (uwzględniane są spółki z ustawionym „Symbolem bankier").
         </p>
       )}

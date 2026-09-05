@@ -31,7 +31,7 @@ function MarketCard({ m, flag, title }: { m: MarketMacro | null; flag: string; t
       </div>
 
       {!m ? (
-        <p className="text-sm text-neutral-500">Brak danych — kliknij „Odswiez".</p>
+        <p className="text-sm text-neutral-500">Brak danych — kliknij „Odśwież".</p>
       ) : (
         <>
           <div className="space-y-2">
@@ -257,7 +257,7 @@ export default function MacroPage() {
       if (res.error) throw new Error(res.error);
       setView(res);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Nie udalo sie pobrac makro.");
+      setError(e instanceof Error ? e.message : "Nie udało sie pobrac makro.");
     } finally {
       setLoading(false);
     }
@@ -276,7 +276,7 @@ export default function MacroPage() {
       if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Nie udalo sie odswiezyc.");
+      setError(e instanceof Error ? e.message : "Nie udało sie odświeżyc.");
     } finally {
       setRefreshing(false);
     }

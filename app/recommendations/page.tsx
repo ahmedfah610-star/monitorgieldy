@@ -34,7 +34,7 @@ export default function RecommendationsPage() {
       if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
       setView(json);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Nie udalo sie pobrac rekomendacji.");
+      setError(e instanceof Error ? e.message : "Nie udało sie pobrac rekomendacji.");
     } finally {
       setLoading(false);
     }
@@ -55,7 +55,7 @@ export default function RecommendationsPage() {
       setSummary(json);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Nie udalo sie odswiezyc rekomendacji.");
+      setError(e instanceof Error ? e.message : "Nie udało sie odświeżyc rekomendacji.");
     } finally {
       setRefreshing(false);
     }
@@ -74,19 +74,19 @@ export default function RecommendationsPage() {
 
   return (
     <main className="space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Rekomendacje analityków</h1>
+      <div className="card flex flex-wrap items-center justify-between gap-3 p-5">
+        <h1 className="text-2xl font-semibold tracking-tight text-neutral-50">Rekomendacje analityków</h1>
         <button
           onClick={refresh}
           disabled={refreshing}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+          className="btn btn-primary"
         >
-          {refreshing ? "Odswiezam…" : "Odswiez rekomendacje"}
+          {refreshing ? "Odświeżam…" : "Odśwież rekomendacje"}
         </button>
       </div>
 
       {view && !view.usingDb && (
-        <div className="rounded-md border border-amber-900 bg-amber-950/40 px-4 py-3 text-sm text-amber-300">
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
           Baza nie jest skonfigurowana — rekomendacje wymagają Vercel Postgres (do zapisu
           historii i wykrywania nowych). Ustaw <code>POSTGRES_URL</code> i uruchom{" "}
           <code>/api/init-db</code>.
@@ -94,7 +94,7 @@ export default function RecommendationsPage() {
       )}
 
       {error && (
-        <div className="rounded-md border border-red-900 bg-red-950/50 px-4 py-3 text-sm text-red-300">
+        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
           Błąd: {error}
         </div>
       )}
@@ -102,7 +102,7 @@ export default function RecommendationsPage() {
       {summary && (
         <div className="rounded-md border border-neutral-800 bg-neutral-900/50 px-4 py-3 text-sm">
           <p className="text-neutral-200">
-            Odswiezono: pobrano {summary.fetched}, nowych{" "}
+            Odświeżono: pobrano {summary.fetched}, nowych{" "}
             <span className="font-semibold text-up">{summary.inserted}</span>.
           </p>
           {!summary.finnhubConfigured && (
@@ -128,7 +128,7 @@ export default function RecommendationsPage() {
             <h2 className="text-lg font-medium text-neutral-200">Twoja watchlista</h2>
             {grouped.length === 0 ? (
               <p className="text-sm text-neutral-500">
-                Brak zapisanych rekomendacji. Kliknij „Odswiez rekomendacje", aby pobrać dane.
+                Brak zapisanych rekomendacji. Kliknij „Odśwież rekomendacje", aby pobrać dane.
               </p>
             ) : (
               grouped.map(([ticker, recs]) => (

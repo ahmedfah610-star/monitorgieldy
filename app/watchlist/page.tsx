@@ -56,7 +56,7 @@ export default function WatchlistPage() {
       }
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Nie udalo sie zaktualizowac watchlisty.");
+      setError(e instanceof Error ? e.message : "Nie udało sie zaktualizowac watchlisty.");
     } finally {
       setAddingTicker(null);
     }
@@ -72,7 +72,7 @@ export default function WatchlistPage() {
       setItems(json.items ?? []);
       setUsingFallback(Boolean(json.usingFallback));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Nie udalo sie pobrac watchlisty.");
+      setError(e instanceof Error ? e.message : "Nie udało sie pobrac watchlisty.");
     } finally {
       setLoading(false);
     }
@@ -99,7 +99,7 @@ export default function WatchlistPage() {
       setBankierSymbol("");
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Nie udalo sie dodac pozycji.");
+      setError(e instanceof Error ? e.message : "Nie udało sie dodac pozycji.");
     } finally {
       setSaving(false);
     }
@@ -114,24 +114,30 @@ export default function WatchlistPage() {
       if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Nie udalo sie usunac pozycji.");
+      setError(e instanceof Error ? e.message : "Nie udało sie usunac pozycji.");
     }
   }
 
   return (
     <main className="space-y-6">
-      <h1 className="text-2xl font-semibold">Watchlista</h1>
+      <div className="card p-5">
+        <p className="eyebrow">Ustawienia</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-neutral-50">Watchlista</h1>
+        <p className="mt-1 text-sm text-neutral-400">
+          Spółki, które śledzisz — zasilają ranking, screener i wszystkie sekcje.
+        </p>
+      </div>
 
       {usingFallback && (
-        <div className="rounded-md border border-amber-900 bg-amber-950/40 px-4 py-3 text-sm text-amber-300">
-          Tryb podgladu (bez bazy): widzisz domyslna liste tylko do odczytu.
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+          Tryb podglądu (bez bazy): widzisz domyślna liste tylko do odczytu.
           Podepnij Vercel Postgres (<code>POSTGRES_URL</code> + <code>/api/init-db</code>),
-          aby dodawac i usuwac wlasne pozycje.
+          aby dodawać i usuwać wlasne pozycje.
         </div>
       )}
 
       {error && (
-        <div className="rounded-md border border-red-900 bg-red-950/50 px-4 py-3 text-sm text-red-300">
+        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
           {error}
         </div>
       )}
@@ -185,7 +191,7 @@ export default function WatchlistPage() {
         <button
           type="submit"
           disabled={saving || usingFallback}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+          className="btn btn-primary"
         >
           {saving ? "Dodaje…" : "Dodaj"}
         </button>
@@ -244,7 +250,7 @@ export default function WatchlistPage() {
       </section>
 
       {loading ? (
-        <p className="text-sm text-neutral-500">Ladowanie…</p>
+        <p className="text-sm text-neutral-500">Ładowanie…</p>
       ) : items.length === 0 ? (
         <p className="text-sm text-neutral-500">Watchlista jest pusta.</p>
       ) : (

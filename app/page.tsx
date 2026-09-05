@@ -48,7 +48,7 @@ export default function DashboardPage() {
       fetch("/api/reports", { cache: "no-store" }).then((res) => res.json()),
     ]);
     if (q.status === "fulfilled" && !q.value.error) setQuotes(q.value);
-    else setError("Nie udalo sie pobrac notowan.");
+    else setError("Nie udało sie pobrac notowan.");
     if (r.status === "fulfilled" && !r.value.error) setRecs(r.value);
     if (rep.status === "fulfilled" && !rep.value.error) setReports(rep.value);
     setFetchedAt(new Date().toISOString());
@@ -100,7 +100,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {!quotes && !error && <p className="text-sm text-neutral-500">Ladowanie…</p>}
+      {!quotes && !error && <p className="text-sm text-neutral-500">Ładowanie…</p>}
 
       {/* --- Notowania --- */}
       {quotes && (
