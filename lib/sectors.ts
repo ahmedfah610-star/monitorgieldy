@@ -58,6 +58,7 @@ const GPW: Record<string, string> = {
   neu: "Ochrona zdrowia", snt: "Ochrona zdrowia", gpp: "Technologia i IT", cbf: "Technologia i IT",
   vrc: "Technologia i IT", mdv: "E-commerce", mnc: "Przemysł", abe: "Technologia i IT",
   eat: "Gastronomia", pep: "Energetyka", dia: "Ochrona zdrowia", bft: "Usługi", rbw: "Turystyka",
+  pas: "Technologia i IT",
 };
 
 // Slug bankier -> ta sama branza co ticker.
@@ -76,7 +77,7 @@ const GPW_BY_SLUG: Record<string, string> = {
   NEWAG: "Przemysł", NEUCA: "Ochrona zdrowia", SYNEKTIK: "Ochrona zdrowia", GRUPRACUJ: "Technologia i IT",
   CYBERFLKS: "Technologia i IT", VERCOM: "Technologia i IT", MODIVO: "E-commerce", MENNICA: "Przemysł",
   ABPL: "Technologia i IT", AMREST: "Gastronomia", PEP: "Energetyka", DIAG: "Ochrona zdrowia",
-  BENEFIT: "Usługi", RAINBOW: "Turystyka",
+  BENEFIT: "Usługi", RAINBOW: "Turystyka", PASSUS: "Technologia i IT",
 };
 
 const US: Record<string, string> = {

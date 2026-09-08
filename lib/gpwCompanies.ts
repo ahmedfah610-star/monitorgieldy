@@ -76,4 +76,6 @@ export const GPW_COMPANIES: GpwCompany[] = [
   { ticker: "dia", name: "Diagnostyka", bankierSymbol: "DIAG" },
   { ticker: "bft", name: "Benefit Systems", bankierSymbol: "BENEFIT" },
   { ticker: "rbw", name: "Rainbow Tours", bankierSymbol: "RAINBOW" },
+  // --- Dodane recznie ---
+  { ticker: "pas", name: "Passus", bankierSymbol: "PASSUS" },
 ];
