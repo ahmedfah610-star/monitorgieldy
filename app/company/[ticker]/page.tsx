@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { CompanyAvatar } from "@/components/CompanyAvatar";
+import { LegalDisclaimer } from "@/components/LegalDisclaimer";
 import type {
   RankingEntry, RankingComponent, CompanyOutlook, Report,
   Recommendation, InsiderTransaction, ShortPosition, HoldingNotification, Dividend,
@@ -308,6 +309,8 @@ export default function CompanyProfilePage({ params }: { params: Promise<{ ticke
           </ul>
         </Section>
       )}
+
+      <LegalDisclaimer variant="card" />
 
       <div className="pt-2">
         <Link href="/ranking" className="text-sm text-blue-600 hover:underline">← Ranking</Link>

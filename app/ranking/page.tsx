@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { LegalDisclaimer } from "@/components/LegalDisclaimer";
 import type { RankingEntry, RankingComponent } from "@/lib/types";
 
 interface View {
@@ -186,7 +187,7 @@ export default function RankingPage() {
         <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-blue-500/10 blur-3xl" />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-2xl">
-            <p className="eyebrow">Screener · najlepsze do kupna na dziś</p>
+            <p className="eyebrow">Analiza ilościowa · wskaźnik złożony</p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900">
               Ranking atrakcyjności
             </h1>
@@ -219,6 +220,8 @@ export default function RankingPage() {
           </div>
         ) : null}
       </div>
+
+      <LegalDisclaimer variant="card" />
 
       {refreshing && phase && (
         <div className="card flex items-center gap-3 px-4 py-3.5">

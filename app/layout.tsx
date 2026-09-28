@@ -60,13 +60,22 @@ export default function RootLayout({
 
         <BottomNav />
 
-        <footer className="mx-auto mt-10 hidden max-w-[1360px] px-4 pb-10 sm:block sm:px-6">
-          <div className="flex flex-col gap-1 border-t border-neutral-200 pt-5 text-xs text-neutral-500">
+        <footer className="mx-auto mt-10 max-w-[1360px] px-4 pb-24 sm:px-6 sm:pb-10">
+          <div className="flex flex-col gap-3 border-t border-neutral-200 pt-5 text-xs text-neutral-500">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+              <span className="font-semibold text-neutral-600">MarketScope</span>
+              <Link href="/regulamin" className="hover:text-blue-600 hover:underline">Regulamin</Link>
+              <Link href="/polityka-prywatnosci" className="hover:text-blue-600 hover:underline">Polityka prywatności</Link>
+              <Link href="/zastrzezenia" className="hover:text-blue-600 hover:underline">Zastrzeżenia prawne</Link>
+            </div>
             <span>
-              <span className="font-semibold text-neutral-600">MarketScope</span> — profesjonalny dashboard rynkowy.
+              Materiał informacyjny — <strong className="text-neutral-600">nie stanowi doradztwa inwestycyjnego
+              ani rekomendacji w rozumieniu MAR</strong>. Decyzje inwestycyjne podejmujesz samodzielnie i na
+              własną odpowiedzialność.
             </span>
             <span>
-              Dane: GPW/bankier, KNF, World Bank, NBP, Yahoo Finance. Narzędzie informacyjne, nie doradztwo inwestycyjne.
+              Źródła danych: Yahoo Finance, bankier.pl, KNF, NBP, World Bank. Prawa do danych źródłowych
+              przysługują ich dostawcom.
             </span>
           </div>
         </footer>

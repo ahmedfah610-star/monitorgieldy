@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { SECTORS } from "@/lib/sectors";
+import { LegalDisclaimer } from "@/components/LegalDisclaimer";
 import type { ScreenerRow } from "@/lib/screener";
 
 type Dir = "asc" | "desc";
@@ -163,6 +164,7 @@ export default function ScreenerPage() {
               wielkość — z naszym <strong className="text-neutral-800">wynikiem atrakcyjności</strong> w
               każdym wierszu. Kliknij nagłówek, by sortować.
             </p>
+            <div className="mt-3"><LegalDisclaimer /></div>
           </div>
           <div className="flex items-center gap-2">
             <Link href="/heatmap" className="btn btn-ghost">🗺 Heatmapa</Link>
